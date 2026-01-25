@@ -56,26 +56,16 @@ st.markdown("""
         color: #888888;
     }
 
-    /* Metric Card Styling */
-    .metric-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-
+    /* Metric Card Wrapper */
     .metric-card {
         background: #ffffff;
         border: 1px solid #eaeaea;
         border-radius: 12px;
         padding: 1.25rem;
         text-align: center;
+        position: relative;
+        height: 100%;
         transition: all 0.2s ease;
-    }
-
-    .metric-card:hover {
-        border-color: #007aff;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
 
     .metric-label {
@@ -101,6 +91,37 @@ st.markdown("""
     .delta-positive { color: #eb4432; }
     .delta-negative { color: #1e88e5; }
     
+    /* Toggle State Classes */
+    .card-on {
+        border: 2px solid #007aff !important;
+        background: #f0f7ff !important;
+        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.1);
+    }
+    
+    .card-off {
+        border: 1px solid #f0f0f0 !important;
+        opacity: 0.5;
+        background: #fafafa !important;
+    }
+
+    /* Ghost Button Overlay */
+    div.stButton > button {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        color: transparent !important;
+        padding: 0 !important;
+        z-index: 10 !important;
+    }
+    
+    div.stButton > button:hover {
+        background: rgba(0, 122, 255, 0.03) !important;
+    }
+
     /* Input Section Styling */
     .stDateInput > label, .stRadio > label {
         font-weight: 600 !important;
@@ -136,8 +157,7 @@ TARGET_ETFS = {
 @st.cache_data(ttl=3600)
 def fetch_stock_data(target_dict, start_date):
     combined_df = pd.DataFrame()
-    # Fetch slightly earlier than start_date to ensure we have the baseline price
-    fetch_start = (datetime.combine(start_date, datetime.min.time()) - timedelta(days=10)).strftime('%Y-%m-%d')
+    fetch_start = (datetime.combine(start_date, datetime.min.time()) - timedelta(days=15)).strftime('%Y-%m-%d')
     for code, name in target_dict.items():
         df = fdr.DataReader(code, fetch_start)
         if not df.empty:
@@ -150,19 +170,15 @@ def calculate_period_summary(prices_df, start_date, end_date):
     
     start_dt = pd.to_datetime(start_date)
     end_dt = pd.to_datetime(end_date)
-    
-    # Selection period
     df_period = prices_df[(prices_df.index >= start_dt) & (prices_df.index <= end_dt)]
     
     if df_period.empty:
         return []
 
-    # Baseline: The FIRST available price in the selected period (should be exactly start_date or next trading day)
     base_prices = df_period.iloc[0]
-    # Current (latest in period)
     current_prices = df_period.iloc[-1]
-    last_date = df_period.index[-1].strftime('%Y-%m-%d')
     first_date = df_period.index[0].strftime('%Y-%m-%d')
+    last_date = df_period.index[-1].strftime('%Y-%m-%d')
 
     results = []
     for name in prices_df.columns:
@@ -190,28 +206,31 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Controls Section
-col1, col2, col3 = st.columns([2, 1, 1])
+col_cat, col_s, col_e = st.columns([2, 1, 1])
 
-with col1:
+with col_cat:
     analysis_type = st.radio(
         "Analysis Category",
         ["Individual Stocks", "ETFs"],
         horizontal=True
     )
 
-with col2:
+with col_s:
     default_start = date(date.today().year, 1, 1)
     start_date = st.date_input("Start Date", value=default_start)
 
-with col3:
+with col_e:
     end_date = st.date_input("End Date", value=date.today())
 
 # Set target dictionary based on selection
 active_targets = TARGET_STOCKS if analysis_type == "Individual Stocks" else TARGET_ETFS
 
+# Initialize session state for toggles
+if 'visibility_map' not in st.session_state:
+    st.session_state.visibility_map = {name: True for name in list(TARGET_STOCKS.values()) + list(TARGET_ETFS.values())}
+
 # Data Processing
 with st.spinner("Fetching market data..."):
-    # Ensure start_date is within a reasonable range for FinanceDataReader
     daily_prices = fetch_stock_data(active_targets, start_date)
     summary = calculate_period_summary(daily_prices, start_date, end_date)
 
@@ -219,80 +238,97 @@ if not summary:
     st.warning("No data found for the selected period. Please adjust the dates.")
 else:
     # Metric Grid
+    st.markdown('<div style="margin-bottom: 0.5rem; font-size: 0.85rem; color: #888; text-align: center;">💡 Click a card to toggle chart visibility</div>', unsafe_allow_html=True)
+    
+    # Use a container to hold the cards and buttons
     cols = st.columns(len(summary))
+    
     for idx, item in enumerate(summary):
+        name = item['name']
+        is_visible = st.session_state.visibility_map.get(name, True)
+        
+        # Determine card classes
+        state_class = "card-on" if is_visible else "card-off"
+        color_class = "delta-positive" if item['return'] >= 0 else "delta-negative"
+        prefix = "+" if item['return'] >= 0 else ""
+        
         with cols[idx]:
-            color_class = "delta-positive" if item['return'] >= 0 else "delta-negative"
-            prefix = "+" if item['return'] >= 0 else ""
+            # Container for Card UI + Button Overlay
             st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">{item['name']}</div>
+            <div class="metric-card {state_class}">
+                <div class="metric-label">{name}</div>
                 <div class="metric-value">{item['current_price']:,.0f}</div>
                 <div class="metric-delta {color_class}">{prefix}{item['return']:.2f}%</div>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Absolute positioned ghost button
+            if st.button(" ", key=f"toggle_{name}"):
+                st.session_state.visibility_map[name] = not is_visible
+                st.rerun()
 
     st.markdown("---")
 
-    # Chart Section
-    st.subheader(f"Performance Trend (Based on 100 on {summary[0]['base_date']})")
+    # Filter visible stocks for chart
+    visible_names = [item['name'] for item in summary if st.session_state.visibility_map.get(item['name'], True)]
     
-    # Filter and Normalize
-    df_period = daily_prices[(daily_prices.index >= pd.to_datetime(start_date)) & (daily_prices.index <= pd.to_datetime(end_date))].copy()
-    
-    if not df_period.empty:
-        # Normalization: Use the FIRST day of the filtered period as the 100 base
-        base_val = df_period.iloc[0]
-        norm_df = (df_period / base_val * 100)
+    if not visible_names:
+        st.info("Select at least one stock to view the trend chart.")
+    else:
+        # Chart Section
+        st.subheader(f"Performance Trend (Based on 100 on {summary[0]['base_date']})")
         
-        # Calculate dynamic Min/Max for Y-axis with 5% buffer
-        y_min = float(norm_df.min().min())
-        y_max = float(norm_df.max().max())
-        y_buffer = (y_max - y_min) * 0.05
+        df_period = daily_prices[(daily_prices.index >= pd.to_datetime(start_date)) & (daily_prices.index <= pd.to_datetime(end_date))].copy()
         
-        # Ensure 100 benchmark is always visible
-        final_min = min(y_min - y_buffer, 95)
-        final_max = max(y_max + y_buffer, 105)
+        if not df_period.empty:
+            df_visible = df_period[visible_names]
+            base_val = df_visible.iloc[0]
+            norm_df = (df_visible / base_val * 100)
+            
+            y_min = float(norm_df.min().min())
+            y_max = float(norm_df.max().max())
+            y_buffer = (y_max - y_min) * 0.05
+            final_min = min(y_min - y_buffer, 95)
+            final_max = max(y_max + y_buffer, 105)
 
-        chart = (
-            Line(init_opts=opts.InitOpts(width="100%", height="550px"))
-            .add_xaxis(norm_df.index.strftime('%Y-%m-%d').tolist())
-        )
-        
-        for col in norm_df.columns:
-            chart.add_yaxis(
-                series_name=col,
-                y_axis=norm_df[col].round(2).tolist(),
-                is_symbol_show=False,
-                label_opts=opts.LabelOpts(is_show=False),
-                linestyle_opts=opts.LineStyleOpts(width=2)
+            chart = (
+                Line(init_opts=opts.InitOpts(width="100%", height="550px"))
+                .add_xaxis(norm_df.index.strftime('%Y-%m-%d').tolist())
             )
             
-        chart.set_global_opts(
-            tooltip_opts=opts.TooltipOpts(trigger="axis"),
-            legend_opts=opts.LegendOpts(pos_top="bottom"),
-            yaxis_opts=opts.AxisOpts(
-                type_="value",
-                name="Base 100",
-                min_=int(final_min // 10 * 10),
-                max_=int(final_max // 10 * 10 + 10),
-                interval=20,
-                splitline_opts=opts.SplitLineOpts(is_show=True, linestyle_opts=opts.LineStyleOpts(opacity=0.3)),
-                axislabel_opts=opts.LabelOpts(formatter="{value}")
-            ),
-            xaxis_opts=opts.AxisOpts(type_="category", boundary_gap=False)
-        )
-        
-        # Add 100 benchmark line explicitly
-        chart.set_series_opts(
-            markline_opts=opts.MarkLineOpts(
-                data=[opts.MarkLineItem(y=100, name="Base")],
-                label_opts=opts.LabelOpts(is_show=True, position="end", formatter="100"),
-                linestyle_opts=opts.LineStyleOpts(color="#888", type_="dashed", width=1)
+            for col in norm_df.columns:
+                chart.add_yaxis(
+                    series_name=col,
+                    y_axis=norm_df[col].round(2).tolist(),
+                    is_symbol_show=False,
+                    label_opts=opts.LabelOpts(is_show=False),
+                    linestyle_opts=opts.LineStyleOpts(width=2)
+                )
+                
+            chart.set_global_opts(
+                tooltip_opts=opts.TooltipOpts(trigger="axis"),
+                legend_opts=opts.LegendOpts(pos_top="bottom"),
+                yaxis_opts=opts.AxisOpts(
+                    type_="value",
+                    name="Base 100",
+                    min_=int(final_min // 10 * 10),
+                    max_=int(final_max // 10 * 10 + 20),
+                    interval=20,
+                    splitline_opts=opts.SplitLineOpts(is_show=True, linestyle_opts=opts.LineStyleOpts(opacity=0.3)),
+                    axislabel_opts=opts.LabelOpts(formatter="{value}")
+                ),
+                xaxis_opts=opts.AxisOpts(type_="category", boundary_gap=False)
             )
-        )
-        
-        components.html(chart.render_embed(), height=600)
+            
+            chart.set_series_opts(
+                markline_opts=opts.MarkLineOpts(
+                    data=[opts.MarkLineItem(y=100, name="Base")],
+                    label_opts=opts.LabelOpts(is_show=True, position="end", formatter="100"),
+                    linestyle_opts=opts.LineStyleOpts(color="#888", type_="dashed", width=1)
+                )
+            )
+            
+            components.html(chart.render_embed(), height=600)
 
     # Raw Data Expander
     with st.expander("View Raw Data Details"):

@@ -56,25 +56,33 @@ st.markdown("""
         color: #888888;
     }
 
-    /* Metric Card Wrapper */
+    /* --- OVERLAY STRATEGY --- */
+    /* Force elements in metric columns to overlap using Grid */
+    [data-testid="column"] [data-testid="stVerticalBlock"] {
+        display: grid !important;
+    }
+
+    [data-testid="column"] [data-testid="stVerticalBlock"] > div {
+        grid-area: 1 / 1 / 2 / 2 !important;
+        width: 100% !important;
+        height: 110px !important;
+    }
+
+    /* Metric Card UI */
     .metric-card {
         background: #ffffff;
         border: 1px solid #eaeaea;
         border-radius: 12px;
         padding: 1.25rem;
         text-align: center;
-        position: relative;
-        height: 100%;
+        height: 110px;
         transition: all 0.2s ease;
-        /* CRITICAL: Allow clicks to pass through to the button behind it or the overlay button */
-        pointer-events: none;
-        z-index: 1;
-    }
-
-    .metric-item-container {
-        position: relative;
-        height: 110px; /* Force consistent height */
-        margin-bottom: 1rem;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        /* Ensure clicks pass through if the card happens to be on top */
+        pointer-events: none; 
     }
 
     .metric-label {
@@ -82,13 +90,14 @@ st.markdown("""
         font-weight: 600;
         color: #888888;
         text-transform: uppercase;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.25rem;
     }
 
     .metric-value {
         font-size: 1.25rem;
         font-weight: 700;
         color: #111111;
+        line-height: 1.2;
     }
 
     .metric-delta {
@@ -100,9 +109,8 @@ st.markdown("""
     .delta-positive { color: #eb4432; }
     .delta-negative { color: #1e88e5; }
     
-    /* Toggle State Classes */
     .card-on {
-        border: 1px solid #007aff !important; /* Elegant 1px border */
+        border: 1px solid #007aff !important;
         background: #f0f7ff !important;
         box-shadow: 0 4px 12px rgba(0, 122, 255, 0.05);
     }
@@ -111,24 +119,25 @@ st.markdown("""
         border: 1px solid #f0f0f0 !important;
         opacity: 0.4;
         background: #fafafa !important;
-        filter: grayscale(0.5);
+        filter: grayscale(1);
     }
 
-    /* True Invisible Toggle Overlay */
-    div.stButton > button {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
+    /* Invisible Toggle Button Styling */
+    div.stButton {
         width: 100% !important;
-        height: 100% !important;
+    }
+    
+    div.stButton > button {
+        width: 100% !important;
+        height: 110px !important;
         background: transparent !important;
         border: none !important;
         color: transparent !important;
         padding: 0 !important;
-        z-index: 10 !important; /* Above the card UI */
         cursor: pointer !important;
-        min-height: unset !important;
-        min-width: unset !important;
+        margin: 0 !important;
+        display: block !important;
+        transition: background 0.2s ease !important;
     }
     
     div.stButton > button:hover {
@@ -137,25 +146,11 @@ st.markdown("""
     }
     
     div.stButton > button:focus {
-        background: transparent !important;
-        color: transparent !important;
+        outline: none !important;
         box-shadow: none !important;
     }
 
-    /* Remove the weird Streamlit bottom padding for buttons in columns */
-    div.stButton {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 110px !important;
-    }
-
-    /* Anchor the column for absolute positioning */
-    [data-testid="column"] {
-        position: relative !important;
-        height: 110px !important;
-    }
+    /* --- END OVERLAY STRATEGY --- */
 
     /* Input Section Styling */
     .stDateInput > label, .stRadio > label {
@@ -276,7 +271,7 @@ if not summary:
     st.warning("No data found for the selected period. Please adjust the dates.")
 else:
     # Metric Grid
-    st.markdown('<div style="margin-bottom: 0.5rem; font-size: 0.85rem; color: #888; text-align: center;">💡 Click a card to toggle chart visibility</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: #888; text-align: center;">💡 Click a card below to toggle it on the chart</div>', unsafe_allow_html=True)
     
     cols = st.columns(len(summary))
     
@@ -284,29 +279,25 @@ else:
         name = item['name']
         is_visible = st.session_state.visibility_map.get(name, True)
         
-        # Determine card classes
         state_class = "card-on" if is_visible else "card-off"
         color_class = "delta-positive" if item['return'] >= 0 else "delta-negative"
         prefix = "+" if item['return'] >= 0 else ""
         
         with cols[idx]:
-            # Container for Card UI
+            # Visual layer (bottom)
             st.markdown(f"""
-            <div class="metric-item-container">
-                <div class="metric-card {state_class}">
-                    <div class="metric-label">{name}</div>
-                    <div class="metric-value">{item['current_price']:,.0f}</div>
-                    <div class="metric-delta {color_class}">{prefix}{item['return']:.2f}%</div>
-                </div>
+            <div class="metric-card {state_class}">
+                <div class="metric-label">{name}</div>
+                <div class="metric-value">{item['current_price']:,.0f}</div>
+                <div class="metric-delta {color_class}">{prefix}{item['return']:.2f}%</div>
             </div>
             """, unsafe_allow_html=True)
             
-            # Invisible button overlay - Empty label to ensure nothing is visible
-            if st.button("", key=f"toggle_{name}"):
+            # Interactive layer (top) - button wraps the entire visual area via grid overlay
+            if st.button("", key=f"tgl_{name}"):
                 st.session_state.visibility_map[name] = not is_visible
                 st.rerun()
 
-    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("---")
 
     # Filter visible stocks for chart

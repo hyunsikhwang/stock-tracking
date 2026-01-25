@@ -334,14 +334,30 @@ else:
                     Line(init_opts=opts.InitOpts(width="100%", height="550px"))
                     .add_xaxis(norm_df.index.strftime('%Y-%m-%d').tolist())
                 )
+
+                # 10 High Contrast Modern Colors
+                colors = [
+                    '#5470c6', '#91cc75', '#fac858', '#ee6666', 
+                    '#73c0de', '#3ba272', '#fc8452', '#9a60b4',
+                    '#ea7ccc', '#516b91'
+                ]
                 
-                for col in norm_df.columns:
+                for i, col in enumerate(norm_df.columns):
                     chart.add_yaxis(
                         series_name=col,
                         y_axis=norm_df[col].round(2).tolist(),
                         is_symbol_show=False,
                         label_opts=opts.LabelOpts(is_show=False),
-                        linestyle_opts=opts.LineStyleOpts(width=2)
+                        linestyle_opts=opts.LineStyleOpts(width=2),
+                        # Show label at the end of the line for easy identification
+                        end_label_opts=opts.LabelOpts(
+                            is_show=True, 
+                            formatter=name, 
+                            position="right",
+                            font_size=12,
+                            font_weight="bold",
+                            color=colors[i % len(colors)]
+                )
                     )
                     
                 chart.set_global_opts(

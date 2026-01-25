@@ -122,32 +122,38 @@ st.markdown("""
         filter: grayscale(1);
     }
 
-    /* Invisible Toggle Button Styling */
-    div.stButton {
-        width: 100% !important;
-    }
-    
-    div.stButton > button {
+    /* Invisible Toggle Button Styling - ULTIMATE RELIABILITY VERSION */
+    /* Target the base button container and the button itself */
+    div.stButton, 
+    div.stButton > button,
+    [data-testid="stBaseButton-secondary"],
+    [data-testid="stBaseButton-secondary"] > button {
         width: 100% !important;
         height: 110px !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 10 !important;
         background: transparent !important;
         border: none !important;
         color: transparent !important;
         padding: 0 !important;
-        cursor: pointer !important;
         margin: 0 !important;
         display: block !important;
-        transition: background 0.2s ease !important;
+        cursor: pointer !important;
     }
     
-    div.stButton > button:hover {
-        background: rgba(0, 122, 255, 0.03) !important;
-        border: none !important;
+    /* Ensure no text or hover effects leak through */
+    div.stButton button:hover,
+    [data-testid="stBaseButton-secondary"] button:hover {
+        background: rgba(0, 122, 255, 0.05) !important;
     }
-    
-    div.stButton > button:focus {
-        outline: none !important;
-        box-shadow: none !important;
+
+    div.stButton p,
+    [data-testid="stBaseButton-secondary"] p {
+        display: none !important;
     }
 
     /* --- END OVERLAY STRATEGY --- */
@@ -294,7 +300,7 @@ else:
             """, unsafe_allow_html=True)
             
             # Interactive layer (top) - button wraps the entire visual area via grid overlay
-            if st.button("", key=f"tgl_{name}"):
+            if st.button(" ", key=f"tgl_{name}", use_container_width=True):
                 st.session_state.visibility_map[name] = not is_visible
                 st.rerun()
 

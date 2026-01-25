@@ -1,0 +1,294 @@
+import streamlit as st
+import FinanceDataReader as fdr
+import pandas as pd
+from datetime import datetime, date, timedelta
+import streamlit.components.v1 as components
+from pyecharts import options as opts
+from pyecharts.charts import Line
+
+# Page Configuration
+st.set_page_config(
+    page_title="Stock Tracking | Value Horizon",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Custom CSS for Value Horizon Look & Feel
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 1200px !important;
+    }
+    
+    [data-testid="stHeader"] {
+        display: none;
+    }
+
+    .stApp {
+        background-color: #ffffff;
+        color: #1a1a1a;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .hero-container {
+        padding: 2rem 0;
+        text-align: center;
+        border-bottom: 1px solid #f0f0f0;
+        margin-bottom: 1.5rem;
+    }
+
+    .hero-title {
+        font-size: 2.4rem;
+        font-weight: 700;
+        color: #111111;
+        margin-bottom: 0.5rem;
+        letter-spacing: -1px;
+    }
+
+    .hero-subtitle {
+        font-size: 1.0rem;
+        font-weight: 400;
+        color: #888888;
+    }
+
+    /* Metric Card Styling */
+    .metric-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .metric-card {
+        background: #ffffff;
+        border: 1px solid #eaeaea;
+        border-radius: 12px;
+        padding: 1.25rem;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+
+    .metric-card:hover {
+        border-color: #007aff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    .metric-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #888888;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #111111;
+    }
+
+    .metric-delta {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-top: 0.25rem;
+    }
+
+    .delta-positive { color: #eb4432; }
+    .delta-negative { color: #1e88e5; }
+    
+    /* Input Section Styling */
+    .stDateInput > label {
+        font-weight: 600 !important;
+        color: #111111 !important;
+    }
+
+    /* Hide Streamlit components */
+    #MainMenu, footer, header, .stDeployButton {
+        display: none !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Analysis Targets
+TARGET_STOCKS = {
+    "005930": "삼성전자",
+    "000660": "SK하이닉스",
+    "058470": "리노공업",
+    "042700": "한미반도체",
+    "196170": "알테오젠",
+    "214150": "클래시스",
+    "214450": "파마리서치",
+    "278470": "에이피알"
+}
+
+@st.cache_data(ttl=3600)
+def fetch_stock_data(target_stocks, start_date):
+    combined_df = pd.DataFrame()
+    # Fetch slightly earlier than start_date to ensure we have the baseline price
+    fetch_start = (datetime.combine(start_date, datetime.min.time()) - timedelta(days=10)).strftime('%Y-%m-%d')
+    for code, name in target_stocks.items():
+        df = fdr.DataReader(code, fetch_start)
+        if not df.empty:
+            combined_df[name] = df['Close']
+    return combined_df
+
+def calculate_period_summary(prices_df, start_date, end_date):
+    if prices_df.empty:
+        return []
+    
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
+    
+    # Selection period
+    df_period = prices_df[(prices_df.index >= start_dt) & (prices_df.index <= end_dt)]
+    
+    if df_period.empty:
+        return []
+
+    # Baseline: The FIRST available price in the selected period (should be exactly start_date or next trading day)
+    base_prices = df_period.iloc[0]
+    # Current (latest in period)
+    current_prices = df_period.iloc[-1]
+    last_date = df_period.index[-1].strftime('%Y-%m-%d')
+    first_date = df_period.index[0].strftime('%Y-%m-%d')
+
+    results = []
+    for name in prices_df.columns:
+        start_price = base_prices[name]
+        current_price = current_prices[name]
+        period_return = ((current_price - start_price) / start_price) * 100
+        
+        results.append({
+            "name": name,
+            "start_price": start_price,
+            "current_price": current_price,
+            "return": period_return,
+            "date": last_date,
+            "base_date": first_date
+        })
+    
+    return sorted(results, key=lambda x: x['return'], reverse=True)
+
+# UI Header
+st.markdown("""
+<div class="hero-container">
+    <div class="hero-title">📈 Stock Performance</div>
+    <div class="hero-subtitle">Value Horizon's Advanced Investment Tracking Engine</div>
+</div>
+""", unsafe_allow_html=True)
+
+# Date Selection Controls
+st.markdown('<div style="display: flex; gap: 2rem; justify-content: center; margin-bottom: 2rem;">', unsafe_allow_html=True)
+c1, c2 = st.columns([1, 1])
+with c1:
+    default_start = date(date.today().year, 1, 1)
+    start_date = st.date_input("Start Date", value=default_start)
+with c2:
+    end_date = st.date_input("End Date", value=date.today())
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Data Processing
+with st.spinner("Fetching market data..."):
+    # Ensure start_date is within a reasonable range for FinanceDataReader
+    daily_prices = fetch_stock_data(TARGET_STOCKS, start_date)
+    summary = calculate_period_summary(daily_prices, start_date, end_date)
+
+if not summary:
+    st.warning("No data found for the selected period. Please adjust the dates.")
+else:
+    # Metric Grid
+    cols = st.columns(len(summary))
+    for idx, item in enumerate(summary):
+        with cols[idx]:
+            color_class = "delta-positive" if item['return'] >= 0 else "delta-negative"
+            prefix = "+" if item['return'] >= 0 else ""
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">{item['name']}</div>
+                <div class="metric-value">{item['current_price']:,.0f}</div>
+                <div class="metric-delta {color_class}">{prefix}{item['return']:.2f}%</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # Chart Section
+    st.subheader(f"Performance Trend (Baseted 100 on {summary[0]['base_date']})")
+    
+    # Filter and Normalize
+    df_period = daily_prices[(daily_prices.index >= pd.to_datetime(start_date)) & (daily_prices.index <= pd.to_datetime(end_date))].copy()
+    
+    if not df_period.empty:
+        # Normalization: Use the FIRST day of the filtered period as the 100 base
+        base_val = df_period.iloc[0]
+        norm_df = (df_period / base_val * 100)
+        
+        # Calculate dynamic Min/Max for Y-axis with 5% buffer
+        y_min = float(norm_df.min().min())
+        y_max = float(norm_df.max().max())
+        y_buffer = (y_max - y_min) * 0.05
+        
+        # Ensure 100 benchmark is always visible
+        final_min = min(y_min - y_buffer, 95)
+        final_max = max(y_max + y_buffer, 105)
+
+        chart = (
+            Line(init_opts=opts.InitOpts(width="100%", height="550px"))
+            .add_xaxis(norm_df.index.strftime('%Y-%m-%d').tolist())
+        )
+        
+        for col in norm_df.columns:
+            chart.add_yaxis(
+                series_name=col,
+                y_axis=norm_df[col].round(2).tolist(),
+                is_symbol_show=False,
+                label_opts=opts.LabelOpts(is_show=False),
+                linestyle_opts=opts.LineStyleOpts(width=2)
+            )
+            
+        chart.set_global_opts(
+            tooltip_opts=opts.TooltipOpts(trigger="axis"),
+            legend_opts=opts.LegendOpts(pos_top="bottom"),
+            yaxis_opts=opts.AxisOpts(
+                type_="value",
+                name="Base 100",
+                min_=int(final_min // 10 * 10), # Round to nearest 10 for cleaner look
+                max_=int(final_max // 10 * 10 + 10),
+                interval=20,
+                splitline_opts=opts.SplitLineOpts(is_show=True, linestyle_opts=opts.LineStyleOpts(opacity=0.3)),
+                axislabel_opts=opts.LabelOpts(formatter="{value}")
+            ),
+            xaxis_opts=opts.AxisOpts(type_="category", boundary_gap=False)
+        )
+        
+        # Add 100 benchmark line explicitly
+        chart.set_series_opts(
+            markline_opts=opts.MarkLineOpts(
+                data=[opts.MarkLineItem(y=100, name="Base")],
+                label_opts=opts.LabelOpts(is_show=True, position="end", formatter="100"),
+                linestyle_opts=opts.LineStyleOpts(color="#888", type_="dashed", width=1)
+            )
+        )
+        
+        components.html(chart.render_embed(), height=600)
+
+    # Raw Data Expander
+    with st.expander("View Raw Data Details"):
+        st.dataframe(
+            pd.DataFrame(summary).rename(columns={
+                "name": "종목명",
+                "start_price": "기준일 가격",
+                "current_price": "종료일 가격",
+                "return": "수익률(%)",
+                "date": "기준일",
+                "base_date": "비교기준일"
+            }),
+            use_container_width=True
+        )
+
+st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Source: FinanceDataReader")

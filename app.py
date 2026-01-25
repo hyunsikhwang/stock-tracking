@@ -341,7 +341,7 @@ else:
                     '#73c0de', '#3ba272', '#fc8452', '#9a60b4',
                     '#ea7ccc', '#516b91'
                 ]
-                
+
                 for i, col in enumerate(norm_df.columns):
                     chart.add_yaxis(
                         series_name=col,
@@ -352,7 +352,7 @@ else:
                         # Show label at the end of the line for easy identification
                         end_label_opts=opts.LabelOpts(
                             is_show=True, 
-                            formatter=name, 
+                            formatter=col, 
                             position="right",
                             font_size=12,
                             font_weight="bold",

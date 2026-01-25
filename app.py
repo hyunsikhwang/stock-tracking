@@ -133,7 +133,7 @@ st.markdown("""
         min-width: 100% !important;
         max-width: 100% !important;
         position: absolute !important;
-        top: 0 !important;
+        top: -100% !important;
         left: 0 !important;
         z-index: 10 !important;
         background: transparent !important;

@@ -66,6 +66,15 @@ st.markdown("""
         position: relative;
         height: 100%;
         transition: all 0.2s ease;
+        /* CRITICAL: Allow clicks to pass through to the button behind it or the overlay button */
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .metric-item-container {
+        position: relative;
+        height: 110px; /* Force consistent height */
+        margin-bottom: 1rem;
     }
 
     .metric-label {
@@ -93,18 +102,19 @@ st.markdown("""
     
     /* Toggle State Classes */
     .card-on {
-        border: 2px solid #007aff !important;
+        border: 1px solid #007aff !important; /* Elegant 1px border */
         background: #f0f7ff !important;
-        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.05);
     }
     
     .card-off {
         border: 1px solid #f0f0f0 !important;
-        opacity: 0.5;
+        opacity: 0.4;
         background: #fafafa !important;
+        filter: grayscale(0.5);
     }
 
-    /* Ghost Button Overlay */
+    /* True Invisible Toggle Overlay */
     div.stButton > button {
         position: absolute !important;
         top: 0 !important;
@@ -115,11 +125,36 @@ st.markdown("""
         border: none !important;
         color: transparent !important;
         padding: 0 !important;
-        z-index: 10 !important;
+        z-index: 10 !important; /* Above the card UI */
+        cursor: pointer !important;
+        min-height: unset !important;
+        min-width: unset !important;
     }
     
     div.stButton > button:hover {
         background: rgba(0, 122, 255, 0.03) !important;
+        border: none !important;
+    }
+    
+    div.stButton > button:focus {
+        background: transparent !important;
+        color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    /* Remove the weird Streamlit bottom padding for buttons in columns */
+    div.stButton {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 110px !important;
+    }
+
+    /* Anchor the column for absolute positioning */
+    [data-testid="column"] {
+        position: relative !important;
+        height: 110px !important;
     }
 
     /* Input Section Styling */
@@ -159,9 +194,12 @@ def fetch_stock_data(target_dict, start_date):
     combined_df = pd.DataFrame()
     fetch_start = (datetime.combine(start_date, datetime.min.time()) - timedelta(days=15)).strftime('%Y-%m-%d')
     for code, name in target_dict.items():
-        df = fdr.DataReader(code, fetch_start)
-        if not df.empty:
-            combined_df[name] = df['Close']
+        try:
+            df = fdr.DataReader(code, fetch_start)
+            if not df.empty:
+                combined_df[name] = df['Close']
+        except Exception:
+            continue
     return combined_df
 
 def calculate_period_summary(prices_df, start_date, end_date):
@@ -240,7 +278,6 @@ else:
     # Metric Grid
     st.markdown('<div style="margin-bottom: 0.5rem; font-size: 0.85rem; color: #888; text-align: center;">💡 Click a card to toggle chart visibility</div>', unsafe_allow_html=True)
     
-    # Use a container to hold the cards and buttons
     cols = st.columns(len(summary))
     
     for idx, item in enumerate(summary):
@@ -253,20 +290,23 @@ else:
         prefix = "+" if item['return'] >= 0 else ""
         
         with cols[idx]:
-            # Container for Card UI + Button Overlay
+            # Container for Card UI
             st.markdown(f"""
-            <div class="metric-card {state_class}">
-                <div class="metric-label">{name}</div>
-                <div class="metric-value">{item['current_price']:,.0f}</div>
-                <div class="metric-delta {color_class}">{prefix}{item['return']:.2f}%</div>
+            <div class="metric-item-container">
+                <div class="metric-card {state_class}">
+                    <div class="metric-label">{name}</div>
+                    <div class="metric-value">{item['current_price']:,.0f}</div>
+                    <div class="metric-delta {color_class}">{prefix}{item['return']:.2f}%</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
             
-            # Absolute positioned ghost button
-            if st.button(" ", key=f"toggle_{name}"):
+            # Invisible button overlay - Empty label to ensure nothing is visible
+            if st.button("", key=f"toggle_{name}"):
                 st.session_state.visibility_map[name] = not is_visible
                 st.rerun()
 
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("---")
 
     # Filter visible stocks for chart
@@ -281,54 +321,56 @@ else:
         df_period = daily_prices[(daily_prices.index >= pd.to_datetime(start_date)) & (daily_prices.index <= pd.to_datetime(end_date))].copy()
         
         if not df_period.empty:
-            df_visible = df_period[visible_names]
-            base_val = df_visible.iloc[0]
-            norm_df = (df_visible / base_val * 100)
-            
-            y_min = float(norm_df.min().min())
-            y_max = float(norm_df.max().max())
-            y_buffer = (y_max - y_min) * 0.05
-            final_min = min(y_min - y_buffer, 95)
-            final_max = max(y_max + y_buffer, 105)
+            actual_cols = [c for c in visible_names if c in df_period.columns]
+            if actual_cols:
+                df_visible = df_period[actual_cols]
+                base_val = df_visible.iloc[0]
+                norm_df = (df_visible / base_val * 100)
+                
+                y_min = float(norm_df.min().min())
+                y_max = float(norm_df.max().max())
+                y_buffer = (y_max - y_min) * 0.05
+                final_min = min(y_min - y_buffer, 95)
+                final_max = max(y_max + y_buffer, 105)
 
-            chart = (
-                Line(init_opts=opts.InitOpts(width="100%", height="550px"))
-                .add_xaxis(norm_df.index.strftime('%Y-%m-%d').tolist())
-            )
-            
-            for col in norm_df.columns:
-                chart.add_yaxis(
-                    series_name=col,
-                    y_axis=norm_df[col].round(2).tolist(),
-                    is_symbol_show=False,
-                    label_opts=opts.LabelOpts(is_show=False),
-                    linestyle_opts=opts.LineStyleOpts(width=2)
+                chart = (
+                    Line(init_opts=opts.InitOpts(width="100%", height="550px"))
+                    .add_xaxis(norm_df.index.strftime('%Y-%m-%d').tolist())
                 )
                 
-            chart.set_global_opts(
-                tooltip_opts=opts.TooltipOpts(trigger="axis"),
-                legend_opts=opts.LegendOpts(pos_top="bottom"),
-                yaxis_opts=opts.AxisOpts(
-                    type_="value",
-                    name="Base 100",
-                    min_=int(final_min // 10 * 10),
-                    max_=int(final_max // 10 * 10 + 20),
-                    interval=20,
-                    splitline_opts=opts.SplitLineOpts(is_show=True, linestyle_opts=opts.LineStyleOpts(opacity=0.3)),
-                    axislabel_opts=opts.LabelOpts(formatter="{value}")
-                ),
-                xaxis_opts=opts.AxisOpts(type_="category", boundary_gap=False)
-            )
-            
-            chart.set_series_opts(
-                markline_opts=opts.MarkLineOpts(
-                    data=[opts.MarkLineItem(y=100, name="Base")],
-                    label_opts=opts.LabelOpts(is_show=True, position="end", formatter="100"),
-                    linestyle_opts=opts.LineStyleOpts(color="#888", type_="dashed", width=1)
+                for col in norm_df.columns:
+                    chart.add_yaxis(
+                        series_name=col,
+                        y_axis=norm_df[col].round(2).tolist(),
+                        is_symbol_show=False,
+                        label_opts=opts.LabelOpts(is_show=False),
+                        linestyle_opts=opts.LineStyleOpts(width=2)
+                    )
+                    
+                chart.set_global_opts(
+                    tooltip_opts=opts.TooltipOpts(trigger="axis"),
+                    legend_opts=opts.LegendOpts(pos_top="bottom"),
+                    yaxis_opts=opts.AxisOpts(
+                        type_="value",
+                        name="Base 100",
+                        min_=int(final_min // 10 * 10),
+                        max_=int(final_max // 10 * 10 + 20),
+                        interval=20,
+                        splitline_opts=opts.SplitLineOpts(is_show=True, linestyle_opts=opts.LineStyleOpts(opacity=0.3)),
+                        axislabel_opts=opts.LabelOpts(formatter="{value}")
+                    ),
+                    xaxis_opts=opts.AxisOpts(type_="category", boundary_gap=False)
                 )
-            )
-            
-            components.html(chart.render_embed(), height=600)
+                
+                chart.set_series_opts(
+                    markline_opts=opts.MarkLineOpts(
+                        data=[opts.MarkLineItem(y=100, name="Base")],
+                        label_opts=opts.LabelOpts(is_show=True, position="end", formatter="100"),
+                        linestyle_opts=opts.LineStyleOpts(color="#888", type_="dashed", width=1)
+                    )
+                )
+                
+                components.html(chart.render_embed(), height=600)
 
     # Raw Data Expander
     with st.expander("View Raw Data Details"):

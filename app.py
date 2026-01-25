@@ -8,7 +8,7 @@ from pyecharts.charts import Line
 
 # Page Configuration
 st.set_page_config(
-    page_title="Stock Tracking | Value Horizon",
+    page_title="Stock Performance | Value Horizon",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -102,7 +102,7 @@ st.markdown("""
     .delta-negative { color: #1e88e5; }
     
     /* Input Section Styling */
-    .stDateInput > label {
+    .stDateInput > label, .stRadio > label {
         font-weight: 600 !important;
         color: #111111 !important;
     }
@@ -126,12 +126,19 @@ TARGET_STOCKS = {
     "278470": "에이피알"
 }
 
+TARGET_ETFS = {
+    "226490": "KODEX 코스피",
+    "277630": "TIGER 코스피",
+    "229200": "KODEX 코스닥150",
+    "232080": "TIGER 코스닥150"
+}
+
 @st.cache_data(ttl=3600)
-def fetch_stock_data(target_stocks, start_date):
+def fetch_stock_data(target_dict, start_date):
     combined_df = pd.DataFrame()
     # Fetch slightly earlier than start_date to ensure we have the baseline price
     fetch_start = (datetime.combine(start_date, datetime.min.time()) - timedelta(days=10)).strftime('%Y-%m-%d')
-    for code, name in target_stocks.items():
+    for code, name in target_dict.items():
         df = fdr.DataReader(code, fetch_start)
         if not df.empty:
             combined_df[name] = df['Close']
@@ -182,20 +189,30 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Date Selection Controls
-st.markdown('<div style="display: flex; gap: 2rem; justify-content: center; margin-bottom: 2rem;">', unsafe_allow_html=True)
-c1, c2 = st.columns([1, 1])
-with c1:
+# Controls Section
+col1, col2, col3 = st.columns([2, 1, 1])
+
+with col1:
+    analysis_type = st.radio(
+        "Analysis Category",
+        ["Individual Stocks", "ETFs"],
+        horizontal=True
+    )
+
+with col2:
     default_start = date(date.today().year, 1, 1)
     start_date = st.date_input("Start Date", value=default_start)
-with c2:
+
+with col3:
     end_date = st.date_input("End Date", value=date.today())
-st.markdown('</div>', unsafe_allow_html=True)
+
+# Set target dictionary based on selection
+active_targets = TARGET_STOCKS if analysis_type == "Individual Stocks" else TARGET_ETFS
 
 # Data Processing
 with st.spinner("Fetching market data..."):
     # Ensure start_date is within a reasonable range for FinanceDataReader
-    daily_prices = fetch_stock_data(TARGET_STOCKS, start_date)
+    daily_prices = fetch_stock_data(active_targets, start_date)
     summary = calculate_period_summary(daily_prices, start_date, end_date)
 
 if not summary:
@@ -218,7 +235,7 @@ else:
     st.markdown("---")
 
     # Chart Section
-    st.subheader(f"Performance Trend (Baseted 100 on {summary[0]['base_date']})")
+    st.subheader(f"Performance Trend (Based on 100 on {summary[0]['base_date']})")
     
     # Filter and Normalize
     df_period = daily_prices[(daily_prices.index >= pd.to_datetime(start_date)) & (daily_prices.index <= pd.to_datetime(end_date))].copy()
@@ -257,7 +274,7 @@ else:
             yaxis_opts=opts.AxisOpts(
                 type_="value",
                 name="Base 100",
-                min_=int(final_min // 10 * 10), # Round to nearest 10 for cleaner look
+                min_=int(final_min // 10 * 10),
                 max_=int(final_max // 10 * 10 + 10),
                 interval=20,
                 splitline_opts=opts.SplitLineOpts(is_show=True, linestyle_opts=opts.LineStyleOpts(opacity=0.3)),

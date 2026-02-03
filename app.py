@@ -287,30 +287,35 @@ else:
     # Metric Grid
     st.markdown('<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: #888; text-align: center;">💡 Click a card below to toggle it on the chart</div>', unsafe_allow_html=True)
     
-    cols = st.columns(len(summary))
+    MAX_COLS = 8
+    num_items = len(summary)
     
-    for idx, item in enumerate(summary):
-        name = item['name']
-        is_visible = st.session_state.visibility_map.get(name, True)
+    for i in range(0, num_items, MAX_COLS):
+        batch = summary[i : i + MAX_COLS]
+        cols = st.columns(MAX_COLS)
         
-        state_class = "card-on" if is_visible else "card-off"
-        color_class = "delta-positive" if item['return'] >= 0 else "delta-negative"
-        prefix = "+" if item['return'] >= 0 else ""
-        
-        with cols[idx]:
-            # Visual layer (bottom)
-            st.markdown(f"""
-            <div class="metric-card {state_class}">
-                <div class="metric-label">{name}</div>
-                <div class="metric-value">{item['current_price']:,.0f}</div>
-                <div class="metric-delta {color_class}">{prefix}{item['return']:.2f}%</div>
-            </div>
-            """, unsafe_allow_html=True)
+        for idx, item in enumerate(batch):
+            name = item['name']
+            is_visible = st.session_state.visibility_map.get(name, True)
             
-            # Interactive layer (top) - button wraps the entire visual area via grid overlay
-            if st.button(" ", key=f"tgl_{name}", use_container_width=True):
-                st.session_state.visibility_map[name] = not is_visible
-                st.rerun()
+            state_class = "card-on" if is_visible else "card-off"
+            color_class = "delta-positive" if item['return'] >= 0 else "delta-negative"
+            prefix = "+" if item['return'] >= 0 else ""
+            
+            with cols[idx]:
+                # Visual layer (bottom)
+                st.markdown(f"""
+                <div class="metric-card {state_class}">
+                    <div class="metric-label">{name}</div>
+                    <div class="metric-value">{item['current_price']:,.0f}</div>
+                    <div class="metric-delta {color_class}">{prefix}{item['return']:.2f}%</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Interactive layer (top) - button wraps the entire visual area via grid overlay
+                if st.button(" ", key=f"tgl_{name}", use_container_width=True):
+                    st.session_state.visibility_map[name] = not is_visible
+                    st.rerun()
 
     st.markdown("---")
 

@@ -376,6 +376,7 @@ else:
                 chart.set_global_opts(
                     tooltip_opts=opts.TooltipOpts(trigger="axis"),
                     legend_opts=opts.LegendOpts(pos_top="bottom"),
+                    datazoom_opts=[opts.DataZoomOpts(type_="slider", range_start=0, range_end=100)],
                     yaxis_opts=opts.AxisOpts(
                         type_="value",
                         name="Base 100",

@@ -375,7 +375,7 @@ else:
                     
                 chart.set_global_opts(
                     tooltip_opts=opts.TooltipOpts(trigger="axis"),
-                    legend_opts=opts.LegendOpts(pos_top="bottom"),
+                    legend_opts=opts.LegendOpts(pos_top="top"),
                     datazoom_opts=[opts.DataZoomOpts(type_="slider", range_start=0, range_end=100)],
                     yaxis_opts=opts.AxisOpts(
                         type_="value",
@@ -397,7 +397,7 @@ else:
                     )
                 )
                 
-                components.html(chart.render_embed(), height=600)
+                components.html(chart.render_embed(), height=650)
 
     # Raw Data Expander
     with st.expander("View Raw Data Details"):

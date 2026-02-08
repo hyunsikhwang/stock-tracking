@@ -192,7 +192,26 @@ TARGET_KR_STOCKS = {
 }
 
 TARGET_US_STOCKS = {
-    "LLY": "Eli Lilly"
+    "LLY": "Eli Lilly",
+    "ABBV": "AbbVie",
+    "BABA": "Alibaba",
+    "TSLA": "Tesla",
+    "BRK.B": "Berkshire Hathaway",
+    "DECK": "Deckers Outdoor",
+    "NVO": "Novo Nordisk",
+    "ONON": "On Holding",
+    "ORCL": "Oracle",
+    "RACE": "Ferrari",
+    "TSM": "TSMC",
+    "ASML": "ASML",
+    "AVGO": "Broadcom",
+    "GOOGL": "Google",
+    "MDGL": "Madrigal Pharmaceuticals",
+    "MSFT": "Microsoft",
+    "NVDA": "NVIDIA",
+    "QCOM": "Qualcomm",
+    "VKTX": "Viking Therapeutics",
+    "VRTX": "Vertex Pharmaceuticals"
 }
 
 TARGET_ETFS = {

@@ -172,7 +172,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Analysis Targets
-TARGET_STOCKS = {
+TARGET_KR_STOCKS = {
     "005930": "삼성전자",
     "000660": "SK하이닉스",
     "058470": "리노공업",
@@ -189,6 +189,10 @@ TARGET_STOCKS = {
     "122870": "와이지엔터테인먼트",
     "011790": "SKC",
     "035420": "NAVER"
+}
+
+TARGET_US_STOCKS = {
+    "LLY": "Eli Lilly"
 }
 
 TARGET_ETFS = {
@@ -260,7 +264,7 @@ col_cat, col_s, col_e = st.columns([2, 1, 1])
 with col_cat:
     analysis_type = st.radio(
         "Analysis Category",
-        ["Individual Stocks", "ETFs"],
+        ["KR Stocks", "US Stocks", "ETFs"],
         horizontal=True
     )
 
@@ -272,11 +276,17 @@ with col_e:
     end_date = st.date_input("End Date", value=date.today())
 
 # Set target dictionary based on selection
-active_targets = TARGET_STOCKS if analysis_type == "Individual Stocks" else TARGET_ETFS
+if analysis_type == "KR Stocks":
+    active_targets = TARGET_KR_STOCKS
+elif analysis_type == "US Stocks":
+    active_targets = TARGET_US_STOCKS
+else:
+    active_targets = TARGET_ETFS
 
 # Initialize session state for toggles
 if 'visibility_map' not in st.session_state:
-    st.session_state.visibility_map = {name: True for name in list(TARGET_STOCKS.values()) + list(TARGET_ETFS.values())}
+    all_names = list(TARGET_KR_STOCKS.values()) + list(TARGET_US_STOCKS.values()) + list(TARGET_ETFS.values())
+    st.session_state.visibility_map = {name: True for name in all_names}
 
 # Data Processing
 with st.spinner("Fetching market data..."):

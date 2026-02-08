@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 import streamlit.components.v1 as components
 from pyecharts import options as opts
 from pyecharts.charts import Line
+import streamlit_shadcn_ui as ui
 
 # Page Configuration
 st.set_page_config(
@@ -281,11 +282,9 @@ st.markdown("""
 col_cat, col_s, col_e = st.columns([2, 1, 1])
 
 with col_cat:
-    analysis_type = st.radio(
-        "Analysis Category",
-        ["KR Stocks", "US Stocks", "ETFs"],
-        horizontal=True
-    )
+    st.markdown('<p style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: #111;">Analysis Category</p>', unsafe_allow_html=True)
+    tabs = ["KR Stocks", "US Stocks", "ETFs"]
+    analysis_type = ui.tabs(options=tabs, default_value=tabs[0], key="analysis_tabs")
 
 with col_s:
     default_start = date(date.today().year, 1, 1)

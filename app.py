@@ -318,7 +318,7 @@ else:
     # Metric Grid
     st.markdown('<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: #888; text-align: center;">💡 Click a card below to toggle it on the chart</div>', unsafe_allow_html=True)
     
-    MAX_COLS = 8
+    MAX_COLS = 6
     num_items = len(summary)
     
     for i in range(0, num_items, MAX_COLS):

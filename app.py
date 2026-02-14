@@ -1,11 +1,12 @@
 import streamlit as st
 import FinanceDataReader as fdr
 import pandas as pd
+import html
 from datetime import datetime, date, timedelta
 import streamlit.components.v1 as components
 from pyecharts import options as opts
 from pyecharts.charts import Line
-import streamlit_shadcn_ui as ui
+from urllib.parse import quote
 
 # Page Configuration
 st.set_page_config(
@@ -57,19 +58,6 @@ st.markdown("""
         color: #888888;
     }
 
-    /* --- OVERLAY STRATEGY --- */
-    /* Force elements in metric columns to overlap using Grid */
-    [data-testid="column"] [data-testid="stVerticalBlock"] {
-        display: grid !important;
-    }
-
-    [data-testid="column"] [data-testid="stVerticalBlock"] > div {
-        grid-area: 1 / 1 / 2 / 2 !important;
-        width: 110px !important;
-        height: 110px !important;
-        margin: 0 auto !important;
-    }
-
     /* Metric Card UI */
     .metric-card {
         background: #ffffff;
@@ -85,8 +73,6 @@ st.markdown("""
         flex-direction: column;
         justify-content: center;
         margin: 0 auto;
-        /* Ensure clicks pass through if the card happens to be on top */
-        pointer-events: none; 
     }
 
     .metric-label {
@@ -126,64 +112,23 @@ st.markdown("""
         filter: grayscale(1);
     }
 
-    /* Invisible Toggle Button Styling - ULTIMATE RELIABILITY VERSION */
-    /* Target the base button container and the button itself */
-    div.stButton, 
-    div.stButton > button,
-    [data-testid="stBaseButton-secondary"],
-    [data-testid="stBaseButton-secondary"] > button {
-        width: 110px !important;
-        height: 110px !important;
-        min-width: 110px !important;
-        max-width: 110px !important;
-        position: absolute !important;
-        top: -100% !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        z-index: 10 !important;
-        background: transparent !important;
-        border: none !important;
-        color: transparent !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        display: block !important;
-        cursor: pointer !important;
-    }
-    
-    /* Ensure no text or hover effects leak through */
-    div.stButton button:hover,
-    [data-testid="stBaseButton-secondary"] button:hover {
-        background: rgba(0, 122, 255, 0.05) !important;
-    }
-
-    div.stButton p,
-    [data-testid="stBaseButton-secondary"] p {
-        display: none !important;
-    }
-
-    /* --- END OVERLAY STRATEGY --- */
-
-    /* Grid Layout Tuning - Narrow horizontal spacing */
+    /* CSS Grid Layout for metric cards */
     .metric-grid-area {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1rem; /* Vertical gap between rows */
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 110px));
+        justify-content: center;
+        gap: 1rem;
         margin: 0.5rem 0 1.5rem 0;
     }
 
-    .metric-grid-area [data-testid="stHorizontalBlock"] {
-        display: inline-flex !important;
-        gap: 1rem !important; /* Horizontal gap between columns */
-        justify-content: center !important;
-        width: fit-content !important;
-        max-width: fit-content !important;
+    .metric-link {
+        text-decoration: none !important;
+        color: inherit !important;
     }
 
-    .metric-grid-area [data-testid="column"] {
-        flex: 0 0 110px !important;
-        width: 110px !important;
-        min-width: 110px !important;
+    .metric-link:hover .metric-card {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(17, 17, 17, 0.08);
     }
 
     /* Input Section Styling */
@@ -344,41 +289,36 @@ with st.spinner("Fetching market data..."):
 if not summary:
     st.warning("No data found for the selected period. Please adjust the dates.")
 else:
+    toggle_name = st.query_params.get("toggle")
+    if toggle_name:
+        if isinstance(toggle_name, list):
+            toggle_name = toggle_name[0]
+        if toggle_name in st.session_state.visibility_map:
+            st.session_state.visibility_map[toggle_name] = not st.session_state.visibility_map[toggle_name]
+        st.query_params.clear()
+        st.rerun()
+
     # Metric Grid
-    st.markdown('<div class="metric-grid-area">', unsafe_allow_html=True)
     st.markdown('<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: #888; text-align: center;">💡 Click a card below to toggle it on the chart</div>', unsafe_allow_html=True)
-    
-    MAX_COLS = 6
-    num_items = len(summary)
-    
-    for i in range(0, num_items, MAX_COLS):
-        batch = summary[i : i + MAX_COLS]
-        cols = st.columns(len(batch), gap="small")
-        
-        for idx, item in enumerate(batch):
-            name = item['name']
-            is_visible = st.session_state.visibility_map.get(name, True)
-            
-            state_class = "card-on" if is_visible else "card-off"
-            color_class = "delta-positive" if item['return'] >= 0 else "delta-negative"
-            prefix = "+" if item['return'] >= 0 else ""
-            
-            with cols[idx]:
-                # Visual layer (bottom)
-                st.markdown(f"""
-                <div class="metric-card {state_class}">
-                    <div class="metric-label">{name}</div>
-                    <div class="metric-value">{item['current_price']:,.0f}</div>
-                    <div class="metric-delta {color_class}">{prefix}{item['return']:.2f}%</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Interactive layer (top) - button wraps the entire visual area via grid overlay
-                if st.button(" ", key=f"tgl_{name}", use_container_width=True):
-                    st.session_state.visibility_map[name] = not is_visible
-                    st.rerun()
-                    
-    st.markdown('</div>', unsafe_allow_html=True)
+
+    card_html = ['<div class="metric-grid-area">']
+    for item in summary:
+        name = item['name']
+        is_visible = st.session_state.visibility_map.get(name, True)
+        state_class = "card-on" if is_visible else "card-off"
+        color_class = "delta-positive" if item['return'] >= 0 else "delta-negative"
+        prefix = "+" if item['return'] >= 0 else ""
+        safe_name = html.escape(name)
+        card_html.append(
+            f'<a class="metric-link" href="?toggle={quote(name)}">'
+            f'<div class="metric-card {state_class}">'
+            f'<div class="metric-label">{safe_name}</div>'
+            f'<div class="metric-value">{item["current_price"]:,.0f}</div>'
+            f'<div class="metric-delta {color_class}">{prefix}{item["return"]:.2f}%</div>'
+            f'</div></a>'
+        )
+    card_html.append('</div>')
+    st.markdown("".join(card_html), unsafe_allow_html=True)
     st.markdown("---")
 
     # Filter visible stocks for chart

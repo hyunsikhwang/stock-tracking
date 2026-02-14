@@ -6,6 +6,7 @@ from datetime import datetime, date, timedelta
 import streamlit.components.v1 as components
 from pyecharts import options as opts
 from pyecharts.charts import Line
+import streamlit_shadcn_ui as ui
 from urllib.parse import quote
 
 # Page Configuration

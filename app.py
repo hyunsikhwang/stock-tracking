@@ -165,19 +165,23 @@ st.markdown("""
 
     /* Grid Layout Tuning - Narrow horizontal spacing */
     .metric-grid-area {
-        max-width: 740px !important;
-        margin: 0 auto !important;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem; /* Vertical gap between rows */
+        margin: 0.5rem 0 1.5rem 0;
     }
 
     .metric-grid-area [data-testid="stHorizontalBlock"] {
-        gap: 1rem !important;
+        gap: 1rem !important; /* Horizontal gap between columns */
         justify-content: center !important;
+        width: auto !important;
     }
 
     .metric-grid-area [data-testid="column"] {
-        flex: 0 1 auto !important;
+        flex: 0 0 110px !important;
+        width: 110px !important;
         min-width: 110px !important;
-        max-width: 110px !important;
     }
 
     /* Input Section Styling */

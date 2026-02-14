@@ -65,8 +65,9 @@ st.markdown("""
 
     [data-testid="column"] [data-testid="stVerticalBlock"] > div {
         grid-area: 1 / 1 / 2 / 2 !important;
-        width: 100% !important;
+        width: 110px !important;
         height: 110px !important;
+        margin: 0 auto !important;
     }
 
     /* Metric Card UI */
@@ -74,14 +75,16 @@ st.markdown("""
         background: #ffffff;
         border: 1px solid #eaeaea;
         border-radius: 12px;
-        padding: 1.25rem;
+        padding: 0.75rem;
         text-align: center;
+        width: 110px;
         height: 110px;
         transition: all 0.2s ease;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        margin: 0 auto;
         /* Ensure clicks pass through if the card happens to be on top */
         pointer-events: none; 
     }
@@ -129,13 +132,14 @@ st.markdown("""
     div.stButton > button,
     [data-testid="stBaseButton-secondary"],
     [data-testid="stBaseButton-secondary"] > button {
-        width: 100% !important;
+        width: 110px !important;
         height: 110px !important;
-        min-width: 100% !important;
-        max-width: 100% !important;
+        min-width: 110px !important;
+        max-width: 110px !important;
         position: absolute !important;
         top: -100% !important;
-        left: 0 !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
         z-index: 10 !important;
         background: transparent !important;
         border: none !important;

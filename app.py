@@ -164,8 +164,13 @@ st.markdown("""
     /* --- END OVERLAY STRATEGY --- */
 
     /* Grid Layout Tuning - Narrow horizontal spacing */
+    .metric-grid-area {
+        max-width: 740px !important;
+        margin: 0 auto !important;
+    }
+
     .metric-grid-area [data-testid="stHorizontalBlock"] {
-        gap: 0.5rem !important;
+        gap: 1rem !important;
         justify-content: center !important;
     }
 

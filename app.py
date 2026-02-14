@@ -163,6 +163,18 @@ st.markdown("""
 
     /* --- END OVERLAY STRATEGY --- */
 
+    /* Grid Layout Tuning - Narrow horizontal spacing */
+    .metric-grid-area [data-testid="stHorizontalBlock"] {
+        gap: 0.5rem !important;
+        justify-content: center !important;
+    }
+
+    .metric-grid-area [data-testid="column"] {
+        flex: 0 1 auto !important;
+        min-width: 110px !important;
+        max-width: 110px !important;
+    }
+
     /* Input Section Styling */
     .stDateInput > label, .stRadio > label {
         font-weight: 600 !important;
@@ -322,6 +334,7 @@ if not summary:
     st.warning("No data found for the selected period. Please adjust the dates.")
 else:
     # Metric Grid
+    st.markdown('<div class="metric-grid-area">', unsafe_allow_html=True)
     st.markdown('<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: #888; text-align: center;">💡 Click a card below to toggle it on the chart</div>', unsafe_allow_html=True)
     
     MAX_COLS = 6
@@ -329,7 +342,7 @@ else:
     
     for i in range(0, num_items, MAX_COLS):
         batch = summary[i : i + MAX_COLS]
-        cols = st.columns(MAX_COLS)
+        cols = st.columns(MAX_COLS, gap="small")
         
         for idx, item in enumerate(batch):
             name = item['name']
@@ -353,7 +366,8 @@ else:
                 if st.button(" ", key=f"tgl_{name}", use_container_width=True):
                     st.session_state.visibility_map[name] = not is_visible
                     st.rerun()
-
+                    
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("---")
 
     # Filter visible stocks for chart

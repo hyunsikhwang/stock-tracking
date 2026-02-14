@@ -116,10 +116,22 @@ st.markdown("""
     /* CSS Grid Layout for metric cards */
     .metric-grid-area {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(110px, 110px));
+        grid-template-columns: repeat(6, 110px);
         justify-content: center;
         gap: 1rem;
         margin: 0.5rem 0 1.5rem 0;
+    }
+
+    @media (max-width: 840px) {
+        .metric-grid-area {
+            grid-template-columns: repeat(4, 110px);
+        }
+    }
+
+    @media (max-width: 580px) {
+        .metric-grid-area {
+            grid-template-columns: repeat(2, 110px);
+        }
     }
 
     .metric-link {

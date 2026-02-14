@@ -173,9 +173,11 @@ st.markdown("""
     }
 
     .metric-grid-area [data-testid="stHorizontalBlock"] {
+        display: inline-flex !important;
         gap: 1rem !important; /* Horizontal gap between columns */
         justify-content: center !important;
-        width: auto !important;
+        width: fit-content !important;
+        max-width: fit-content !important;
     }
 
     .metric-grid-area [data-testid="column"] {
@@ -351,7 +353,7 @@ else:
     
     for i in range(0, num_items, MAX_COLS):
         batch = summary[i : i + MAX_COLS]
-        cols = st.columns(MAX_COLS, gap="small")
+        cols = st.columns(len(batch), gap="small")
         
         for idx, item in enumerate(batch):
             name = item['name']

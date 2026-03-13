@@ -171,7 +171,7 @@ def configure_page() -> None:
         padding: 0.75rem;
         text-align: center;
         width: 110px;
-        height: 110px;
+        min-height: 128px;
         transition: all 0.2s ease;
         box-sizing: border-box;
         display: flex;
@@ -199,6 +199,13 @@ def configure_page() -> None:
         font-size: 0.85rem;
         font-weight: 600;
         margin-top: 0.25rem;
+    }
+
+    .metric-meta {
+        font-size: 0.68rem;
+        color: #777777;
+        margin-top: 0.25rem;
+        line-height: 1.3;
     }
 
     .delta-positive { color: #eb4432; }
@@ -240,6 +247,8 @@ def configure_page() -> None:
     .metric-link {
         text-decoration: none !important;
         color: inherit !important;
+        pointer-events: none;
+        cursor: default;
     }
 
     .metric-link:hover .metric-card {
@@ -364,7 +373,7 @@ def get_axis_bounds(norm_df):
 def render_metric_cards(summary):
     st.markdown(
         '<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: #888; text-align: center;">'
-        "💡 Click a card below to toggle it on the chart"
+        "카드를 클릭하면 차트에서 종목을 켜고 끌 수 있습니다."
         "</div>",
         unsafe_allow_html=True,
     )
@@ -377,12 +386,14 @@ def render_metric_cards(summary):
         color_class = "delta-positive" if item["return"] >= 0 else "delta-negative"
         prefix = "+" if item["return"] >= 0 else ""
         safe_name = html.escape(name)
+        base_date_text = html.escape(item["base_date"])
         card_html.append(
             f'<a class="metric-link" href="?toggle={quote(name)}">'
             f'<div class="metric-card {state_class}">'
             f'<div class="metric-label">{safe_name}</div>'
             f'<div class="metric-value">{item["current_price"]:,.0f}</div>'
             f'<div class="metric-delta {color_class}">{prefix}{item["return"]:.2f}%</div>'
+            f'<div class="metric-meta">비교기준일<br>{base_date_text}</div>'
             f"</div></a>"
         )
     card_html.append("</div>")

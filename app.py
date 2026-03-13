@@ -53,7 +53,7 @@ TARGET_KR_STOCKS = {
     "196170": "알테오젠",
     "141080": "리가켐바이오",
     "298380": "에이비엘바이오",
-    "475830": "브이엠",
+    "475830": "오름테라퓨틱스",
     "214150": "클래시스",
     "214450": "파마리서치",
     "278470": "에이피알",
@@ -247,8 +247,6 @@ def configure_page() -> None:
     .metric-link {
         text-decoration: none !important;
         color: inherit !important;
-        pointer-events: none;
-        cursor: default;
     }
 
     .metric-link:hover .metric-card {
@@ -371,12 +369,6 @@ def get_axis_bounds(norm_df):
 
 
 def render_metric_cards(summary):
-    st.markdown(
-        '<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: #888; text-align: center;">'
-        "카드를 클릭하면 차트에서 종목을 켜고 끌 수 있습니다."
-        "</div>",
-        unsafe_allow_html=True,
-    )
 
     card_html = ['<div class="metric-grid-area">']
     for item in summary:

@@ -380,13 +380,13 @@ def render_metric_cards(summary):
         safe_name = html.escape(name)
         base_date_text = html.escape(item["base_date"])
         card_html.append(
-            f'<a class="metric-link" href="?toggle={quote(name)}" target="_self">'
+            f'<div class="metric-link">'
             f'<div class="metric-card {state_class}">'
             f'<div class="metric-label">{safe_name}</div>'
             f'<div class="metric-value">{item["current_price"]:,.0f}</div>'
             f'<div class="metric-delta {color_class}">{prefix}{item["return"]:.2f}%</div>'
             f'<div class="metric-meta">비교기준일<br>{base_date_text}</div>'
-            f"</div></a>"
+            f"</div></div>"
         )
     card_html.append("</div>")
     st.markdown("".join(card_html), unsafe_allow_html=True)
@@ -512,16 +512,7 @@ def render_app():
         )
         return
 
-    toggle_name = st.query_params.get("toggle")
-    if toggle_name:
-        if isinstance(toggle_name, list):
-            toggle_name = toggle_name[0]
-        if toggle_name in st.session_state.visibility_map:
-            st.session_state.visibility_map[toggle_name] = not st.session_state.visibility_map[
-                toggle_name
-            ]
-        st.query_params.clear()
-        st.rerun()
+
 
     st.info(
         "선택 기간 시작일에 가격이 없는 종목은 최초 가격 확인일을 비교기준일로 자동 사용합니다."

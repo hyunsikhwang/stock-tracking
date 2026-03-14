@@ -380,13 +380,13 @@ def render_metric_cards(summary):
         safe_name = html.escape(name)
         base_date_text = html.escape(item["base_date"])
         card_html.append(
-            f'<div class="metric-link">'
+            f'<a class="metric-link" href="?toggle={quote(name)}" target="_self">'
             f'<div class="metric-card {state_class}">'
             f'<div class="metric-label">{safe_name}</div>'
             f'<div class="metric-value">{item["current_price"]:,.0f}</div>'
             f'<div class="metric-delta {color_class}">{prefix}{item["return"]:.2f}%</div>'
             f'<div class="metric-meta">비교기준일<br>{base_date_text}</div>'
-            f"</div></div>"
+            f"</div></a>"
         )
     card_html.append("</div>")
     st.markdown("".join(card_html), unsafe_allow_html=True)

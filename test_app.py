@@ -103,6 +103,25 @@ class TestApp(unittest.TestCase):
         self.assertAlmostEqual(summary[0]["current_price"], 110.0)
         self.assertAlmostEqual(summary[0]["return"], 10.0)
 
+    def test_calculate_period_summary_handles_duplicate_index(self):
+        dates = pd.to_datetime(["2026-01-01", "2026-01-01", "2026-01-02", "2026-01-03"])
+        prices_df = pd.DataFrame(
+            {
+                "ETF": [100, 101, 110, 120],
+            },
+            index=dates,
+        )
+
+        summary = calculate_period_summary(
+            prices_df, pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-03")
+        )
+
+        self.assertEqual(summary[0]["base_date"], "2026-01-01")
+        self.assertEqual(summary[0]["date"], "2026-01-03")
+        self.assertAlmostEqual(summary[0]["start_price"], 100.0)
+        self.assertAlmostEqual(summary[0]["current_price"], 120.0)
+        self.assertAlmostEqual(summary[0]["return"], 20.0)
+
 
 if __name__ == "__main__":
     unittest.main()

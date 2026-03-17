@@ -306,10 +306,10 @@ def calculate_period_summary(prices_df, start_date, end_date):
         if series.empty:
             continue
 
-        base_date = series.first_valid_index()
-        current_date = series.last_valid_index()
-        start_price = series.loc[base_date]
-        current_price = series.loc[current_date]
+        base_date = series.index[0]
+        current_date = series.index[-1]
+        start_price = series.iloc[0]
+        current_price = series.iloc[-1]
 
         if pd.isna(start_price) or pd.isna(current_price) or start_price == 0:
             continue
@@ -342,11 +342,11 @@ def normalize_prices_for_chart(prices_df, visible_names, start_date, end_date):
     normalized = pd.DataFrame(index=df_period.index)
     for column in actual_cols:
         series = df_period[column]
-        first_valid_index = series.first_valid_index()
-        if first_valid_index is None:
+        valid_series = series.dropna()
+        if valid_series.empty:
             continue
 
-        base_value = series.loc[first_valid_index]
+        base_value = valid_series.iloc[0]
         if pd.isna(base_value) or base_value == 0:
             continue
 

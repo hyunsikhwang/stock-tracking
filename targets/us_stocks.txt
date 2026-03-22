@@ -19,3 +19,4 @@ NVDA|NVIDIA|24
 QCOM|Qualcomm|90
 VKTX|Viking Therapeutics|200
 VRTX|Vertex Pharmaceuticals|27
+AMAT|Applied Materials|30

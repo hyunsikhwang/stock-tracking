@@ -1,5 +1,5 @@
 streamlit
 pandas
 finance-datareader
-pyecharts
+pyecharts==2.0.9
 streamlit-shadcn-ui

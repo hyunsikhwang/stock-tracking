@@ -1,7 +1,7 @@
-- [x] requirements에 pyecharts 버전 고정
+- [x] 포트폴리오 차트를 horizontal stacked bar로 변경
 - [x] 변경 검증 및 작업 기록 갱신
 
 ## Review
-- 로컬 `.venv` 기준 `pyecharts 2.0.9`를 확인하고 `requirements.txt`에 동일 버전으로 고정
-- 배포환경도 로컬과 같은 pyecharts 버전으로 설치되도록 재현성 확보
+- 포트폴리오 비중 차트를 단일 100% 막대 위에 종목별 세그먼트를 쌓는 horizontal stacked bar로 변경
+- 라벨과 툴팁은 종목명과 비중만 표시하고, 작은 비중 세그먼트는 내부 라벨을 숨겨 가독성 유지
 - 검증: `./.venv/bin/python -m py_compile app.py test_app.py`, `./.venv/bin/python -m unittest -q`

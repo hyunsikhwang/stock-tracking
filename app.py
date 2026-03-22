@@ -493,36 +493,41 @@ def build_chart(norm_df):
 
 
 def build_portfolio_chart(portfolio_weights):
-    chart = Bar(init_opts=opts.InitOpts(width="100%", height="420px"))
-    chart.add_xaxis([item["name"] for item in portfolio_weights])
-    chart.add_yaxis(
-        series_name="비중",
-        y_axis=[round(item["weight"], 2) for item in portfolio_weights],
-        category_gap="45%",
-        label_opts=opts.LabelOpts(
-            is_show=True,
-            position="right",
-            formatter="{c}%",
-        ),
-    )
-    chart.reversal_axis()
-    chart.set_series_opts(
-        itemstyle_opts=opts.ItemStyleOpts(
-            color=CHART_COLORS[0],
-            border_radius=[0, 6, 6, 0],
+    chart = Bar(init_opts=opts.InitOpts(width="100%", height="220px"))
+    chart.add_xaxis(["Portfolio"])
+    for index, item in enumerate(portfolio_weights):
+        chart.add_yaxis(
+            series_name=item["name"],
+            y_axis=[round(item["weight"], 2)],
+            stack="allocation",
+            category_gap="55%",
+            label_opts=opts.LabelOpts(
+                is_show=item["weight"] >= 6,
+                position="inside",
+                formatter=f'{item["name"]}\n{{c}}%',
+                color="#ffffff",
+                font_size=10,
+            ),
+            itemstyle_opts=opts.ItemStyleOpts(
+                color=CHART_COLORS[index % len(CHART_COLORS)],
+                border_radius=[0, 0, 0, 0],
+            ),
         )
-    )
+    chart.reversal_axis()
     chart.set_global_opts(
         title_opts=opts.TitleOpts(
             title="Portfolio Allocation",
             pos_left="center",
         ),
         tooltip_opts=opts.TooltipOpts(
-            trigger="axis",
+            trigger="item",
             axis_pointer_type="shadow",
-            formatter="{b}<br/>비중: {c}%",
+            formatter="{a}<br/>비중: {c}%",
         ),
-        legend_opts=opts.LegendOpts(is_show=False),
+        legend_opts=opts.LegendOpts(
+            orient="horizontal",
+            pos_top="bottom",
+        ),
         xaxis_opts=opts.AxisOpts(
             type_="value",
             max_=100,
@@ -532,7 +537,7 @@ def build_portfolio_chart(portfolio_weights):
                 linestyle_opts=opts.LineStyleOpts(opacity=0.3),
             ),
         ),
-        yaxis_opts=opts.AxisOpts(type_="category"),
+        yaxis_opts=opts.AxisOpts(type_="category", axislabel_opts=opts.LabelOpts(is_show=False)),
     )
     return chart
 
@@ -628,7 +633,7 @@ def render_app():
     if portfolio_weights:
         st.subheader("Current Portfolio Allocation")
         portfolio_chart = build_portfolio_chart(portfolio_weights)
-        components.html(portfolio_chart.render_embed(), height=420)
+        components.html(portfolio_chart.render_embed(), height=260)
         st.markdown("---")
 
     if not visible_names:

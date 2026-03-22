@@ -1,21 +1,21 @@
 # code|name|quantity
-LLY|Eli Lilly|1
-ABBV|AbbVie|1
-BABA|Alibaba|1
-TSLA|Tesla|1
-BRK.B|Berkshire Hathaway|1
-DECK|Deckers Outdoor|1
-NVO|Novo Nordisk|1
-ONON|On Holding|1
-ORCL|Oracle|1
-RACE|Ferrari|1
-TSM|TSMC|1
-ASML|ASML|1
-AVGO|Broadcom|1
-GOOGL|Google|1
-MDGL|Madrigal Pharmaceuticals|1
-MSFT|Microsoft|1
-NVDA|NVIDIA|1
-QCOM|Qualcomm|1
-VKTX|Viking Therapeutics|1
-VRTX|Vertex Pharmaceuticals|1
+LLY|Eli Lilly|136
+ABBV|AbbVie|489
+BABA|Alibaba|109
+TSLA|Tesla|106
+BRK.B|Berkshire Hathaway|128
+DECK|Deckers Outdoor|54
+NVO|Novo Nordisk|180
+ONON|On Holding|128
+ORCL|Oracle|18
+RACE|Ferrari|133
+TSM|TSMC|80
+ASML|ASML|50
+AVGO|Broadcom|102
+GOOGL|Google|274
+MDGL|Madrigal Pharmaceuticals|69
+MSFT|Microsoft|120
+NVDA|NVIDIA|24
+QCOM|Qualcomm|90
+VKTX|Viking Therapeutics|200
+VRTX|Vertex Pharmaceuticals|27

@@ -1,9 +1,17 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import pandas as pd
 
-from app import calculate_period_summary, fetch_stock_data, normalize_prices_for_chart
+from app import (
+    TargetConfigError,
+    calculate_period_summary,
+    fetch_stock_data,
+    load_target_records,
+    normalize_prices_for_chart,
+)
 
 
 class TestApp(unittest.TestCase):
@@ -15,12 +23,38 @@ class TestApp(unittest.TestCase):
         )
         mock_reader.return_value = mock_df
 
-        target_stocks = {"005930": "삼성전자"}
+        target_stocks = [{"code": "005930", "name": "삼성전자", "quantity": 1}]
         result = fetch_stock_data(target_stocks, pd.Timestamp("2026-01-01").date())
 
         self.assertIn("삼성전자", result.columns)
         self.assertEqual(len(result), 2)
         self.assertEqual(result.iloc[0]["삼성전자"], 100)
+
+    def test_load_target_records_supports_default_quantity_and_comments(self):
+        with TemporaryDirectory() as tmp_dir:
+            target_file = Path(tmp_dir) / "targets.txt"
+            target_file.write_text(
+                "# comment\n005930|삼성전자|3\n\nTSLA|Tesla|\n",
+                encoding="utf-8",
+            )
+
+            records = load_target_records(target_file)
+
+        self.assertEqual(
+            records,
+            [
+                {"code": "005930", "name": "삼성전자", "quantity": 3},
+                {"code": "TSLA", "name": "Tesla", "quantity": 1},
+            ],
+        )
+
+    def test_load_target_records_raises_for_invalid_quantity(self):
+        with TemporaryDirectory() as tmp_dir:
+            target_file = Path(tmp_dir) / "targets.txt"
+            target_file.write_text("005930|삼성전자|abc\n", encoding="utf-8")
+
+            with self.assertRaises(TargetConfigError):
+                load_target_records(target_file)
 
     def test_calculate_period_summary_uses_first_valid_date_per_symbol(self):
         dates = pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04"])
@@ -33,17 +67,25 @@ class TestApp(unittest.TestCase):
         )
 
         summary = calculate_period_summary(
-            prices_df, pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-04")
+            prices_df,
+            pd.Timestamp("2026-01-01"),
+            pd.Timestamp("2026-01-04"),
+            [
+                {"code": "A", "name": "기존 ETF", "quantity": 2},
+                {"code": "B", "name": "신규 ETF", "quantity": 5},
+            ],
         )
         summary_by_name = {item["name"]: item for item in summary}
 
         self.assertEqual(summary_by_name["기존 ETF"]["base_date"], "2026-01-01")
         self.assertAlmostEqual(summary_by_name["기존 ETF"]["return"], 3.0)
+        self.assertEqual(summary_by_name["기존 ETF"]["quantity"], 2)
         self.assertEqual(summary_by_name["신규 ETF"]["base_date"], "2026-01-03")
         self.assertEqual(summary_by_name["신규 ETF"]["date"], "2026-01-04")
         self.assertAlmostEqual(summary_by_name["신규 ETF"]["start_price"], 50.0)
         self.assertAlmostEqual(summary_by_name["신규 ETF"]["current_price"], 55.0)
         self.assertAlmostEqual(summary_by_name["신규 ETF"]["return"], 10.0)
+        self.assertEqual(summary_by_name["신규 ETF"]["quantity"], 5)
         self.assertTrue(summary_by_name["신규 ETF"]["is_delayed_start"])
 
     def test_calculate_period_summary_skips_all_nan_symbols(self):

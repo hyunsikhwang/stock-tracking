@@ -1,7 +1,7 @@
 import html
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
-from urllib.parse import quote
 
 import pandas as pd
 
@@ -44,60 +44,11 @@ except ImportError:
     Line = None
 
 
-TARGET_KR_STOCKS = {
-    "005930": "삼성전자",
-    "000660": "SK하이닉스",
-    "058470": "리노공업",
-    "042700": "한미반도체",
-    "095340": "ISC",
-    "196170": "알테오젠",
-    "141080": "리가켐바이오",
-    "298380": "에이비엘바이오",
-    "475830": "오름테라퓨틱스",
-    "214150": "클래시스",
-    "214450": "파마리서치",
-    "278470": "에이피알",
-    "041510": "에스엠",
-    "122870": "와이지엔터테인먼트",
-    "011790": "SKC",
-    "035420": "NAVER",
-    "000100": "유한양행",
-}
-
-TARGET_US_STOCKS = {
-    "LLY": "Eli Lilly",
-    "ABBV": "AbbVie",
-    "BABA": "Alibaba",
-    "TSLA": "Tesla",
-    "BRK.B": "Berkshire Hathaway",
-    "DECK": "Deckers Outdoor",
-    "NVO": "Novo Nordisk",
-    "ONON": "On Holding",
-    "ORCL": "Oracle",
-    "RACE": "Ferrari",
-    "TSM": "TSMC",
-    "ASML": "ASML",
-    "AVGO": "Broadcom",
-    "GOOGL": "Google",
-    "MDGL": "Madrigal Pharmaceuticals",
-    "MSFT": "Microsoft",
-    "NVDA": "NVIDIA",
-    "QCOM": "Qualcomm",
-    "VKTX": "Viking Therapeutics",
-    "VRTX": "Vertex Pharmaceuticals",
-}
-
-TARGET_ETFS = {
-    "226490": "KODEX 코스피",
-    "277630": "TIGER 코스피",
-    "229200": "KODEX 코스닥150",
-    "232080": "TIGER 코스닥150",
-    "233740": "KODEX 코스닥150 레버리지",
-    "233160": "TIGER 코스닥150 레버리지",
-    "102970": "KODEX 증권",
-    "157500": "TIGER 증권",
-    "0162Y0": "TIME 코스닥액티브",
-    "0163Y0": "KoAct 코스닥액티브",
+BASE_DIR = Path(__file__).resolve().parent
+TARGET_FILES = {
+    "KR Stocks": BASE_DIR / "targets" / "kr_stocks.txt",
+    "US Stocks": BASE_DIR / "targets" / "us_stocks.txt",
+    "ETFs": BASE_DIR / "targets" / "etfs.txt",
 }
 
 CHART_COLORS = [
@@ -112,6 +63,55 @@ CHART_COLORS = [
     "#ea7ccc",
     "#516b91",
 ]
+
+
+class TargetConfigError(RuntimeError):
+    pass
+
+
+def load_target_records(file_path):
+    path = Path(file_path)
+    if not path.exists():
+        raise TargetConfigError(f"종목 설정 파일이 없습니다: {path.name}")
+
+    records = []
+    for line_number, raw_line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        parts = [part.strip() for part in line.split("|")]
+        if len(parts) not in (2, 3) or not parts[0] or not parts[1]:
+            raise TargetConfigError(
+                f"{path.name}:{line_number} 형식 오류 - '코드|이름|보유수량' 형식을 사용해 주세요."
+            )
+
+        quantity_text = parts[2] if len(parts) >= 3 else ""
+        if quantity_text == "":
+            quantity = 1
+        else:
+            try:
+                quantity = int(quantity_text)
+            except ValueError as exc:
+                raise TargetConfigError(
+                    f"{path.name}:{line_number} 보유수량은 정수여야 합니다: {quantity_text}"
+                ) from exc
+
+        records.append({"code": parts[0], "name": parts[1], "quantity": quantity})
+
+    if not records:
+        raise TargetConfigError(f"종목 설정 파일이 비어 있습니다: {path.name}")
+
+    return records
+
+
+def load_all_targets():
+    return {
+        category: load_target_records(file_path)
+        for category, file_path in TARGET_FILES.items()
+    }
 
 
 def configure_page() -> None:
@@ -269,12 +269,14 @@ def configure_page() -> None:
 
 
 @st.cache_data(ttl=3600)
-def fetch_stock_data(target_dict, start_date):
+def fetch_stock_data(target_records, start_date):
     combined_df = pd.DataFrame()
     fetch_start = (
         datetime.combine(start_date, datetime.min.time()) - timedelta(days=15)
     ).strftime("%Y-%m-%d")
-    for code, name in target_dict.items():
+    for target in target_records:
+        code = target["code"]
+        name = target["name"]
         try:
             df = fdr.DataReader(code, fetch_start)
             if not df.empty:
@@ -293,13 +295,16 @@ def slice_period_data(prices_df, start_date, end_date):
     return prices_df[(prices_df.index >= start_dt) & (prices_df.index <= end_dt)].copy()
 
 
-def calculate_period_summary(prices_df, start_date, end_date):
+def calculate_period_summary(prices_df, start_date, end_date, target_records=None):
     df_period = slice_period_data(prices_df, start_date, end_date)
     if df_period.empty:
         return []
 
     results = []
     requested_start = pd.to_datetime(start_date)
+    quantity_map = {
+        target["name"]: target["quantity"] for target in (target_records or [])
+    }
 
     for name in df_period.columns:
         series = df_period[name].dropna()
@@ -324,6 +329,7 @@ def calculate_period_summary(prices_df, start_date, end_date):
                 "date": current_date.strftime("%Y-%m-%d"),
                 "base_date": base_date.strftime("%Y-%m-%d"),
                 "is_delayed_start": base_date > requested_start,
+                "quantity": quantity_map.get(name, 1),
             }
         )
 
@@ -456,6 +462,12 @@ def render_app():
 
     configure_page()
 
+    try:
+        targets_by_category = load_all_targets()
+    except TargetConfigError as exc:
+        st.error(f"종목 설정을 불러오지 못했습니다: {exc}")
+        return
+
     st.markdown(
         """
 <div class="hero-container">
@@ -475,7 +487,7 @@ def render_app():
             "</p>",
             unsafe_allow_html=True,
         )
-        tabs = ["KR Stocks", "US Stocks", "ETFs"]
+        tabs = list(TARGET_FILES.keys())
         analysis_type = ui.tabs(options=tabs, default_value=tabs[0], key="analysis_tabs")
 
     with col_s:
@@ -485,24 +497,21 @@ def render_app():
     with col_e:
         end_date = st.date_input("End Date", value=date.today())
 
-    if analysis_type == "KR Stocks":
-        active_targets = TARGET_KR_STOCKS
-    elif analysis_type == "US Stocks":
-        active_targets = TARGET_US_STOCKS
-    else:
-        active_targets = TARGET_ETFS
+    active_targets = targets_by_category[analysis_type]
 
     if "visibility_map" not in st.session_state:
-        all_names = (
-            list(TARGET_KR_STOCKS.values())
-            + list(TARGET_US_STOCKS.values())
-            + list(TARGET_ETFS.values())
-        )
+        all_names = [
+            target["name"]
+            for target_list in targets_by_category.values()
+            for target in target_list
+        ]
         st.session_state.visibility_map = {name: True for name in all_names}
 
     with st.spinner("Fetching market data..."):
         daily_prices = fetch_stock_data(active_targets, start_date)
-        summary = calculate_period_summary(daily_prices, start_date, end_date)
+        summary = calculate_period_summary(
+            daily_prices, start_date, end_date, active_targets
+        )
 
     if not summary:
         st.warning("선택한 기간에 표시할 데이터가 없습니다. 날짜를 조정해 주세요.")
@@ -548,6 +557,7 @@ def render_app():
                 "date": "종료 기준일",
                 "base_date": "비교기준일",
                 "is_delayed_start": "후발 시작 종목",
+                "quantity": "보유수량",
             }
         )
         st.dataframe(summary_df, use_container_width=True)

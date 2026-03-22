@@ -533,9 +533,6 @@ def build_portfolio_chart(portfolio_weights):
             ),
         ),
         yaxis_opts=opts.AxisOpts(type_="category"),
-        grid_opts=opts.GridOpts(
-            pos_left="18%", pos_right="8%", pos_top=50, pos_bottom=20
-        ),
     )
     return chart
 

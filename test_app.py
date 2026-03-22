@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pandas as pd
 
 from app import (
+    calculate_portfolio_weights,
     TargetConfigError,
     calculate_period_summary,
     fetch_stock_data,
@@ -144,6 +145,33 @@ class TestApp(unittest.TestCase):
         self.assertEqual(summary[0]["date"], "2026-01-02")
         self.assertAlmostEqual(summary[0]["current_price"], 110.0)
         self.assertAlmostEqual(summary[0]["return"], 10.0)
+
+    def test_calculate_portfolio_weights_uses_price_times_quantity(self):
+        summary = [
+            {"name": "삼성전자", "current_price": 100.0, "quantity": 2},
+            {"name": "Tesla", "current_price": 300.0, "quantity": 1},
+            {"name": "현금성", "current_price": 0.0, "quantity": 5},
+        ]
+
+        portfolio = calculate_portfolio_weights(summary)
+
+        self.assertEqual([item["name"] for item in portfolio], ["Tesla", "삼성전자"])
+        self.assertAlmostEqual(portfolio[0]["market_value"], 300.0)
+        self.assertAlmostEqual(portfolio[0]["weight"], 60.0)
+        self.assertAlmostEqual(portfolio[1]["market_value"], 200.0)
+        self.assertAlmostEqual(portfolio[1]["weight"], 40.0)
+
+    def test_calculate_portfolio_weights_respects_visible_names(self):
+        summary = [
+            {"name": "삼성전자", "current_price": 100.0, "quantity": 2},
+            {"name": "Tesla", "current_price": 300.0, "quantity": 1},
+        ]
+
+        portfolio = calculate_portfolio_weights(summary, visible_names=["삼성전자"])
+
+        self.assertEqual(len(portfolio), 1)
+        self.assertEqual(portfolio[0]["name"], "삼성전자")
+        self.assertAlmostEqual(portfolio[0]["weight"], 100.0)
 
     def test_calculate_period_summary_handles_duplicate_index(self):
         dates = pd.to_datetime(["2026-01-01", "2026-01-01", "2026-01-02", "2026-01-03"])

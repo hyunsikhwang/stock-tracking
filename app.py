@@ -38,10 +38,11 @@ except ImportError:
 
 try:
     from pyecharts import options as opts
-    from pyecharts.charts import Line
+    from pyecharts.charts import Line, Pie
 except ImportError:
     opts = None
     Line = None
+    Pie = None
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -374,6 +375,43 @@ def get_axis_bounds(norm_df):
     return int(final_min // 10 * 10), int(final_max // 10 * 10 + 20)
 
 
+def calculate_portfolio_weights(summary, visible_names=None):
+    visible_set = set(visible_names) if visible_names is not None else None
+    portfolio = []
+
+    for item in summary:
+        if visible_set is not None and item["name"] not in visible_set:
+            continue
+
+        market_value = item["current_price"] * item.get("quantity", 1)
+        if market_value <= 0:
+            continue
+
+        portfolio.append(
+            {
+                "name": item["name"],
+                "quantity": item.get("quantity", 1),
+                "current_price": item["current_price"],
+                "market_value": float(market_value),
+            }
+        )
+
+    total_value = sum(item["market_value"] for item in portfolio)
+    if total_value == 0:
+        return []
+
+    weighted = []
+    for item in portfolio:
+        weighted.append(
+            {
+                **item,
+                "weight": (item["market_value"] / total_value) * 100,
+            }
+        )
+
+    return sorted(weighted, key=lambda x: x["weight"], reverse=True)
+
+
 def render_metric_cards(summary):
 
     card_html = ['<div class="metric-grid-area">']
@@ -454,8 +492,49 @@ def build_chart(norm_df):
     return chart
 
 
+def build_portfolio_chart(portfolio_weights):
+    chart = Pie(init_opts=opts.InitOpts(width="100%", height="380px"))
+    chart.add(
+        series_name="Portfolio Weight",
+        data_pair=[
+            (item["name"], round(item["market_value"], 2)) for item in portfolio_weights
+        ],
+        radius=["42%", "70%"],
+        center=["38%", "50%"],
+        label_opts=opts.LabelOpts(
+            is_show=True,
+            formatter="{b}\n{d}%",
+            font_size=11,
+        ),
+    )
+    chart.set_colors(CHART_COLORS)
+    chart.set_global_opts(
+        title_opts=opts.TitleOpts(
+            title="Portfolio Allocation",
+            subtitle="현재가 x 보유수량 기준",
+            pos_left="center",
+        ),
+        legend_opts=opts.LegendOpts(
+            orient="vertical",
+            pos_left="72%",
+            pos_top="middle",
+        ),
+        tooltip_opts=opts.TooltipOpts(
+            trigger="item",
+            formatter="{b}<br/>비중: {d}%<br/>평가금액: {c}",
+        ),
+    )
+    return chart
+
+
 def render_app():
-    if ui is None or opts is None or Line is None or getattr(fdr, "DataReader", None) is None:
+    if (
+        ui is None
+        or opts is None
+        or Line is None
+        or Pie is None
+        or getattr(fdr, "DataReader", None) is None
+    ):
         raise RuntimeError(
             "앱 실행에 필요한 의존성이 없습니다. requirements.txt의 패키지를 먼저 설치해 주세요."
         )
@@ -534,6 +613,14 @@ def render_app():
         for item in summary
         if st.session_state.visibility_map.get(item["name"], True)
     ]
+    portfolio_weights = calculate_portfolio_weights(summary, visible_names)
+
+    if portfolio_weights:
+        st.subheader("Current Portfolio Allocation")
+        portfolio_chart = build_portfolio_chart(portfolio_weights)
+        components.html(portfolio_chart.render_embed(), height=420)
+        st.caption("현재가와 보유수량을 곱한 평가금액 기준 비중입니다.")
+        st.markdown("---")
 
     if not visible_names:
         st.info("최소 1개 이상의 종목을 선택해야 차트를 볼 수 있습니다.")

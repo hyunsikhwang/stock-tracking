@@ -38,11 +38,11 @@ except ImportError:
 
 try:
     from pyecharts import options as opts
-    from pyecharts.charts import Line, Pie
+    from pyecharts.charts import Bar, Line
 except ImportError:
     opts = None
+    Bar = None
     Line = None
-    Pie = None
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -493,35 +493,47 @@ def build_chart(norm_df):
 
 
 def build_portfolio_chart(portfolio_weights):
-    chart = Pie(init_opts=opts.InitOpts(width="100%", height="380px"))
-    chart.add(
-        series_name="Portfolio Weight",
-        data_pair=[
-            (item["name"], round(item["market_value"], 2)) for item in portfolio_weights
-        ],
-        radius=["42%", "70%"],
-        center=["38%", "50%"],
+    chart = Bar(init_opts=opts.InitOpts(width="100%", height="420px"))
+    chart.add_xaxis([item["name"] for item in portfolio_weights])
+    chart.add_yaxis(
+        series_name="비중",
+        y_axis=[round(item["weight"], 2) for item in portfolio_weights],
+        category_gap="45%",
         label_opts=opts.LabelOpts(
             is_show=True,
-            formatter="{b}\n{d}%",
-            font_size=11,
+            position="right",
+            formatter="{c}%",
         ),
     )
-    chart.set_colors(CHART_COLORS)
+    chart.reversal_axis()
+    chart.set_series_opts(
+        itemstyle_opts=opts.ItemStyleOpts(
+            color=CHART_COLORS[0],
+            border_radius=[0, 6, 6, 0],
+        )
+    )
     chart.set_global_opts(
         title_opts=opts.TitleOpts(
             title="Portfolio Allocation",
             pos_left="center",
         ),
-        legend_opts=opts.LegendOpts(
-            orient="vertical",
-            pos_left="72%",
-            pos_top="middle",
-        ),
         tooltip_opts=opts.TooltipOpts(
-            trigger="item",
-            formatter="{b}<br/>비중: {d}%",
+            trigger="axis",
+            axis_pointer_type="shadow",
+            formatter="{b}<br/>비중: {c}%",
         ),
+        legend_opts=opts.LegendOpts(is_show=False),
+        xaxis_opts=opts.AxisOpts(
+            type_="value",
+            max_=100,
+            axislabel_opts=opts.LabelOpts(formatter="{value}%"),
+            splitline_opts=opts.SplitLineOpts(
+                is_show=True,
+                linestyle_opts=opts.LineStyleOpts(opacity=0.3),
+            ),
+        ),
+        yaxis_opts=opts.AxisOpts(type_="category"),
+        grid_opts=opts.GridOpts(left="18%", right="8%", top=50, bottom=20),
     )
     return chart
 
@@ -531,7 +543,7 @@ def render_app():
         ui is None
         or opts is None
         or Line is None
-        or Pie is None
+        or Bar is None
         or getattr(fdr, "DataReader", None) is None
     ):
         raise RuntimeError(

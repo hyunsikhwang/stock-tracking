@@ -524,10 +524,7 @@ def build_portfolio_chart(portfolio_weights):
             axis_pointer_type="shadow",
             formatter="{a}<br/>비중: {c}%",
         ),
-        legend_opts=opts.LegendOpts(
-            orient="horizontal",
-            pos_top="bottom",
-        ),
+        legend_opts=opts.LegendOpts(is_show=False),
         xaxis_opts=opts.AxisOpts(
             type_="value",
             max_=100,

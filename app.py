@@ -511,7 +511,6 @@ def build_portfolio_chart(portfolio_weights):
     chart.set_global_opts(
         title_opts=opts.TitleOpts(
             title="Portfolio Allocation",
-            subtitle="현재가 x 보유수량 기준",
             pos_left="center",
         ),
         legend_opts=opts.LegendOpts(
@@ -521,7 +520,7 @@ def build_portfolio_chart(portfolio_weights):
         ),
         tooltip_opts=opts.TooltipOpts(
             trigger="item",
-            formatter="{b}<br/>비중: {d}%<br/>평가금액: {c}",
+            formatter="{b}<br/>비중: {d}%",
         ),
     )
     return chart
@@ -619,7 +618,6 @@ def render_app():
         st.subheader("Current Portfolio Allocation")
         portfolio_chart = build_portfolio_chart(portfolio_weights)
         components.html(portfolio_chart.render_embed(), height=420)
-        st.caption("현재가와 보유수량을 곱한 평가금액 기준 비중입니다.")
         st.markdown("---")
 
     if not visible_names:

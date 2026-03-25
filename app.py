@@ -2,6 +2,8 @@ import html
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from urllib.parse import quote
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
 
@@ -275,17 +277,30 @@ def fetch_stock_data(target_records, start_date):
     fetch_start = (
         datetime.combine(start_date, datetime.min.time()) - timedelta(days=15)
     ).strftime("%Y-%m-%d")
-    for target in target_records:
+
+    def fetch_single(target):
         code = target["code"]
         name = target["name"]
         try:
             df = fdr.DataReader(code, fetch_start)
             if not df.empty:
-                combined_df[name] = df["Close"]
+                return name, df["Close"]
         except Exception:
-            continue
-    return combined_df.sort_index()
+            pass
+        return name, None
 
+    with ThreadPoolExecutor(max_workers=min(30, max(1, len(target_records)))) as executor:
+        futures = {executor.submit(fetch_single, target): target["name"] for target in target_records}
+        for future in as_completed(futures):
+            name, series = future.result()
+            if series is not None:
+                combined_df[name] = series
+
+    ordered_cols = [target["name"] for target in target_records if target["name"] in combined_df.columns]
+    if ordered_cols:
+        combined_df = combined_df[ordered_cols]
+
+    return combined_df.sort_index()
 
 def slice_period_data(prices_df, start_date, end_date):
     if prices_df.empty:

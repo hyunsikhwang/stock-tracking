@@ -31,6 +31,46 @@ class TestApp(unittest.TestCase):
         self.assertEqual(len(result), 2)
         self.assertEqual(result.iloc[0]["삼성전자"], 100)
 
+    @patch("app.as_completed")
+    @patch("app.fdr.DataReader")
+    def test_fetch_stock_data_preserves_union_of_dates_regardless_of_completion_order(
+        self, mock_reader, mock_as_completed
+    ):
+        def reader_side_effect(code, fetch_start):
+            data_map = {
+                "EARLY": pd.DataFrame(
+                    {"Close": [100, 110, 120]},
+                    index=pd.to_datetime(["2026-03-07", "2026-03-08", "2026-03-10"]),
+                ),
+                "LATE": pd.DataFrame(
+                    {"Close": [50, 55]},
+                    index=pd.to_datetime(["2026-03-10", "2026-03-11"]),
+                ),
+            }
+            return data_map[code]
+
+        def reversed_completion_order(futures):
+            return list(futures.keys())[::-1]
+
+        mock_reader.side_effect = reader_side_effect
+        mock_as_completed.side_effect = reversed_completion_order
+
+        result = fetch_stock_data(
+            [
+                {"code": "EARLY", "name": "선행 ETF", "quantity": 1},
+                {"code": "LATE", "name": "후행 ETF", "quantity": 1},
+            ],
+            pd.Timestamp("2026-03-07").date(),
+        )
+
+        self.assertEqual(
+            result.index.tolist(),
+            pd.to_datetime(["2026-03-07", "2026-03-08", "2026-03-10", "2026-03-11"]).tolist(),
+        )
+        self.assertAlmostEqual(result.loc[pd.Timestamp("2026-03-07"), "선행 ETF"], 100.0)
+        self.assertTrue(pd.isna(result.loc[pd.Timestamp("2026-03-07"), "후행 ETF"]))
+        self.assertAlmostEqual(result.loc[pd.Timestamp("2026-03-10"), "후행 ETF"], 50.0)
+
     def test_load_target_records_supports_default_quantity_and_comments(self):
         with TemporaryDirectory() as tmp_dir:
             target_file = Path(tmp_dir) / "targets.txt"

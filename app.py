@@ -273,10 +273,10 @@ def configure_page() -> None:
 
 @st.cache_data(ttl=3600)
 def fetch_stock_data(target_records, start_date):
-    combined_df = pd.DataFrame()
     fetch_start = (
         datetime.combine(start_date, datetime.min.time()) - timedelta(days=15)
     ).strftime("%Y-%m-%d")
+    series_map = {}
 
     def fetch_single(target):
         code = target["code"]
@@ -294,7 +294,12 @@ def fetch_stock_data(target_records, start_date):
         for future in as_completed(futures):
             name, series = future.result()
             if series is not None:
-                combined_df[name] = series
+                series_map[name] = series
+
+    if not series_map:
+        return pd.DataFrame()
+
+    combined_df = pd.concat(series_map, axis=1, sort=True)
 
     ordered_cols = [target["name"] for target in target_records if target["name"] in combined_df.columns]
     if ordered_cols:

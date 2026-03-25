@@ -89,6 +89,24 @@ class TestApp(unittest.TestCase):
         self.assertEqual(summary_by_name["신규 ETF"]["quantity"], 5)
         self.assertTrue(summary_by_name["신규 ETF"]["is_delayed_start"])
 
+    def test_calculate_period_summary_marks_delayed_start_against_requested_start(self):
+        dates = pd.to_datetime(["2026-01-02", "2026-01-03", "2026-01-04"])
+        prices_df = pd.DataFrame(
+            {
+                "ETF A": [100, 110, 120],
+                "ETF B": [200, 210, 220],
+            },
+            index=dates,
+        )
+
+        summary = calculate_period_summary(
+            prices_df, pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-04")
+        )
+        summary_by_name = {item["name"]: item for item in summary}
+
+        self.assertTrue(summary_by_name["ETF A"]["is_delayed_start"])
+        self.assertTrue(summary_by_name["ETF B"]["is_delayed_start"])
+
     def test_calculate_period_summary_skips_all_nan_symbols(self):
         dates = pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"])
         prices_df = pd.DataFrame(

@@ -317,9 +317,7 @@ def calculate_period_summary(prices_df, start_date, end_date, target_records=Non
         return []
 
     results = []
-    requested_start = pd.to_datetime(start_date)
-    # 데이터프레임 내 전체 종목 기준 첫 거래일을 비교기준일로 삼기
-    global_base_date = df_period.dropna(how="all").index[0] if not df_period.dropna(how="all").empty else requested_start
+    requested_start = pd.to_datetime(start_date).normalize()
     quantity_map = {
         target["name"]: target["quantity"] for target in (target_records or [])
     }
@@ -346,7 +344,7 @@ def calculate_period_summary(prices_df, start_date, end_date, target_records=Non
                 "return": float(period_return),
                 "date": current_date.strftime("%Y-%m-%d"),
                 "base_date": base_date.strftime("%Y-%m-%d"),
-                "is_delayed_start": base_date > global_base_date,
+                "is_delayed_start": base_date.normalize() > requested_start,
                 "quantity": quantity_map.get(name, 1),
             }
         )

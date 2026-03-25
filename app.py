@@ -317,7 +317,11 @@ def calculate_period_summary(prices_df, start_date, end_date, target_records=Non
         return []
 
     results = []
-    requested_start = pd.to_datetime(start_date).normalize()
+    reference_base_date = (
+        df_period.dropna(how="all").index[0].normalize()
+        if not df_period.dropna(how="all").empty
+        else pd.to_datetime(start_date).normalize()
+    )
     quantity_map = {
         target["name"]: target["quantity"] for target in (target_records or [])
     }
@@ -344,7 +348,7 @@ def calculate_period_summary(prices_df, start_date, end_date, target_records=Non
                 "return": float(period_return),
                 "date": current_date.strftime("%Y-%m-%d"),
                 "base_date": base_date.strftime("%Y-%m-%d"),
-                "is_delayed_start": base_date.normalize() > requested_start,
+                "is_delayed_start": base_date.normalize() > reference_base_date,
                 "quantity": quantity_map.get(name, 1),
             }
         )

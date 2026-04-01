@@ -457,8 +457,16 @@ def normalize_prices_for_chart(prices_df, visible_names, start_date, end_date):
     return normalized.dropna(axis=1, how="all")
 
 
+def render_html_content(html_content, height):
+    if hasattr(st, "html"):
+        st.html(html_content)
+        return
+
+    components.html(html_content, height=height)
+
+
 def get_axis_bounds(norm_df):
-    finite_values = norm_df.stack(dropna=True)
+    finite_values = pd.Series(norm_df.to_numpy().ravel()).dropna()
     if finite_values.empty:
         return 95, 105
 
@@ -743,7 +751,7 @@ def render_app():
     if portfolio_weights:
         st.subheader("Current Portfolio Allocation")
         portfolio_chart = build_portfolio_chart(portfolio_weights)
-        components.html(portfolio_chart.render_embed(), height=260)
+        render_html_content(portfolio_chart.render_embed(), height=260)
         st.markdown("---")
 
     if not visible_names:
@@ -754,7 +762,7 @@ def render_app():
         norm_df = normalize_prices_for_chart(daily_prices, visible_names, start_date, end_date)
         if not norm_df.empty:
             chart = build_chart(norm_df)
-            components.html(chart.render_embed(), height=650)
+            render_html_content(chart.render_embed(), height=650)
         else:
             st.warning("선택한 종목으로 그릴 수 있는 차트 데이터가 없습니다.")
 

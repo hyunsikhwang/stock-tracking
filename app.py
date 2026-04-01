@@ -458,10 +458,6 @@ def normalize_prices_for_chart(prices_df, visible_names, start_date, end_date):
 
 
 def render_html_content(html_content, height):
-    if hasattr(st, "html"):
-        st.html(html_content)
-        return
-
     components.html(html_content, height=height)
 
 

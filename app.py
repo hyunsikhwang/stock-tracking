@@ -117,6 +117,69 @@ def load_all_targets():
     }
 
 
+@st.cache_data(ttl=3600)
+def get_latest_available_date(target_records):
+    if not target_records or getattr(fdr, "DataReader", None) is None:
+        return date.today()
+
+    lookup_start = (date.today() - timedelta(days=45)).strftime("%Y-%m-%d")
+    latest_dates = []
+
+    for target in target_records[: min(3, len(target_records))]:
+        try:
+            df = fdr.DataReader(target["code"], lookup_start)
+        except Exception:
+            continue
+
+        if df.empty:
+            continue
+
+        latest_dates.append(df.index.max().date())
+
+    return max(latest_dates) if latest_dates else date.today()
+
+
+def normalize_widget_date(value, fallback):
+    if value is None:
+        return fallback
+    if isinstance(value, datetime):
+        return value.date()
+    return value
+
+
+def sync_period_inputs(category_key, latest_available_date):
+    start_key = "start_date_input"
+    end_key = "end_date_input"
+    category_state_key = "selected_analysis_category"
+
+    default_end = latest_available_date
+    default_start = date(default_end.year, 1, 1)
+
+    current_start = normalize_widget_date(
+        st.session_state.get(start_key), default_start
+    )
+    current_end = normalize_widget_date(st.session_state.get(end_key), default_end)
+    previous_category = st.session_state.get(category_state_key)
+
+    if previous_category != category_key:
+        current_start = default_start
+        current_end = default_end
+    else:
+        if current_end > latest_available_date:
+            current_end = default_end
+        if current_start > latest_available_date:
+            current_start = default_start
+
+    if current_start > current_end:
+        current_start = date(current_end.year, 1, 1)
+        if current_start > current_end:
+            current_start = current_end
+
+    st.session_state[start_key] = current_start
+    st.session_state[end_key] = current_end
+    st.session_state[category_state_key] = category_key
+
+
 def configure_page() -> None:
     st.set_page_config(
         page_title="Stock Performance | Value Horizon",
@@ -605,14 +668,27 @@ def render_app():
         tabs = list(TARGET_FILES.keys())
         analysis_type = ui.tabs(options=tabs, default_value=tabs[0], key="analysis_tabs")
 
+    active_targets = targets_by_category[analysis_type]
+    latest_available_date = get_latest_available_date(active_targets)
+    sync_period_inputs(analysis_type, latest_available_date)
+
     with col_s:
-        default_start = date(date.today().year, 1, 1)
-        start_date = st.date_input("Start Date", value=default_start)
+        start_date = st.date_input(
+            "Start Date",
+            key="start_date_input",
+            max_value=latest_available_date,
+        )
 
     with col_e:
-        end_date = st.date_input("End Date", value=date.today())
+        end_date = st.date_input(
+            "End Date",
+            key="end_date_input",
+            max_value=latest_available_date,
+        )
 
-    active_targets = targets_by_category[analysis_type]
+    if start_date > end_date:
+        st.warning("시작일은 종료일보다 늦을 수 없습니다. 날짜를 다시 선택해 주세요.")
+        return
 
     if "visibility_map" not in st.session_state:
         all_names = [
@@ -626,6 +702,11 @@ def render_app():
         daily_prices = fetch_stock_data(active_targets, start_date)
         summary = calculate_period_summary(
             daily_prices, start_date, end_date, active_targets
+        )
+
+    if latest_available_date < date.today():
+        st.caption(
+            f"FinanceDataReader 기준 최신 거래일: {latest_available_date.strftime('%Y-%m-%d')}"
         )
 
     if not summary:

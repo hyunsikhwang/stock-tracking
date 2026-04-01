@@ -67,6 +67,8 @@ CHART_COLORS = [
     "#516b91",
 ]
 
+CACHE_VERSION = "2026-04-01-kr-etf-refresh"
+
 
 class TargetConfigError(RuntimeError):
     pass
@@ -118,7 +120,7 @@ def load_all_targets():
 
 
 @st.cache_data(ttl=3600)
-def get_latest_available_date(target_records):
+def get_latest_available_date(category_key, target_records, cache_version=CACHE_VERSION):
     if not target_records or getattr(fdr, "DataReader", None) is None:
         return date.today()
 
@@ -335,7 +337,7 @@ def configure_page() -> None:
 
 
 @st.cache_data(ttl=3600)
-def fetch_stock_data(target_records, start_date):
+def fetch_stock_data(category_key, target_records, start_date, cache_version=CACHE_VERSION):
     fetch_start = (
         datetime.combine(start_date, datetime.min.time()) - timedelta(days=15)
     ).strftime("%Y-%m-%d")
@@ -356,6 +358,12 @@ def fetch_stock_data(target_records, start_date):
         futures = {executor.submit(fetch_single, target): target["name"] for target in target_records}
         for future in as_completed(futures):
             name, series = future.result()
+            if series is not None:
+                series_map[name] = series
+
+    if not series_map:
+        for target in target_records:
+            name, series = fetch_single(target)
             if series is not None:
                 series_map[name] = series
 
@@ -669,7 +677,7 @@ def render_app():
         analysis_type = ui.tabs(options=tabs, default_value=tabs[0], key="analysis_tabs")
 
     active_targets = targets_by_category[analysis_type]
-    latest_available_date = get_latest_available_date(active_targets)
+    latest_available_date = get_latest_available_date(analysis_type, active_targets)
     sync_period_inputs(analysis_type, latest_available_date)
 
     with col_s:
@@ -699,7 +707,7 @@ def render_app():
         st.session_state.visibility_map = {name: True for name in all_names}
 
     with st.spinner("Fetching market data..."):
-        daily_prices = fetch_stock_data(active_targets, start_date)
+        daily_prices = fetch_stock_data(analysis_type, active_targets, start_date)
         summary = calculate_period_summary(
             daily_prices, start_date, end_date, active_targets
         )

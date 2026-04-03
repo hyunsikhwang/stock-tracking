@@ -1,4 +1,5 @@
 import html
+from base64 import b64encode
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -31,7 +32,10 @@ except ImportError:
             raise RuntimeError("streamlit is required to render the app")
 
     st = _DummyStreamlit()
-    components = SimpleNamespace(html=lambda *args, **kwargs: None)
+    components = SimpleNamespace(
+        html=lambda *args, **kwargs: None,
+        iframe=lambda *args, **kwargs: None,
+    )
 
 try:
     import streamlit_shadcn_ui as ui
@@ -458,7 +462,13 @@ def normalize_prices_for_chart(prices_df, visible_names, start_date, end_date):
 
 
 def render_html_content(html_content, height):
-    components.html(html_content, height=height)
+    iframe_src = build_iframe_data_url(html_content)
+    components.iframe(iframe_src, height=height)
+
+
+def build_iframe_data_url(html_content):
+    encoded_html = b64encode(html_content.encode("utf-8")).decode("ascii")
+    return f"data:text/html;base64,{encoded_html}"
 
 
 def get_axis_bounds(norm_df):
@@ -775,7 +785,7 @@ def render_app():
                 "quantity": "보유수량",
             }
         )
-        st.dataframe(summary_df, use_container_width=True)
+        st.dataframe(summary_df, width="stretch")
 
     st.caption(
         f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "

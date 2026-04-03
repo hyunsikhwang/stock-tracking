@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pandas as pd
 
 from app import (
+    build_iframe_data_url,
     calculate_portfolio_weights,
     TargetConfigError,
     calculate_period_summary,
@@ -25,7 +26,11 @@ class TestApp(unittest.TestCase):
         mock_reader.return_value = mock_df
 
         target_stocks = [{"code": "005930", "name": "삼성전자", "quantity": 1}]
-        result = fetch_stock_data(target_stocks, pd.Timestamp("2026-01-01").date())
+        result = fetch_stock_data(
+            "KR Stocks",
+            target_stocks,
+            pd.Timestamp("2026-01-01").date(),
+        )
 
         self.assertIn("삼성전자", result.columns)
         self.assertEqual(len(result), 2)
@@ -56,6 +61,7 @@ class TestApp(unittest.TestCase):
         mock_as_completed.side_effect = reversed_completion_order
 
         result = fetch_stock_data(
+            "ETFs",
             [
                 {"code": "EARLY", "name": "선행 ETF", "quantity": 1},
                 {"code": "LATE", "name": "후행 ETF", "quantity": 1},
@@ -249,6 +255,14 @@ class TestApp(unittest.TestCase):
         self.assertAlmostEqual(summary[0]["start_price"], 100.0)
         self.assertAlmostEqual(summary[0]["current_price"], 120.0)
         self.assertAlmostEqual(summary[0]["return"], 20.0)
+
+    def test_build_iframe_data_url_encodes_full_html_document(self):
+        iframe_src = build_iframe_data_url(
+            "<html><body><script>console.log('chart')</script></body></html>"
+        )
+
+        self.assertTrue(iframe_src.startswith("data:text/html;base64,"))
+        self.assertIn("PGh0bWw+", iframe_src)
 
 
 if __name__ == "__main__":

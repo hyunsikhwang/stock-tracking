@@ -469,12 +469,16 @@ def get_local_echarts_script():
 def build_pyecharts_html(chart):
     html_content = chart.render_embed()
     script_tag = f"<script type=\"text/javascript\">\n{get_local_echarts_script()}\n</script>"
-    return re.sub(
+    html_with_local_script = re.sub(
         r'<script type="text/javascript" src="[^"]*echarts(?:\.min)?\.js"></script>',
-        lambda _match: script_tag,
+        "",
         html_content,
         count=1,
     )
+    body_match = re.search(r"<body[^>]*>(.*)</body>", html_with_local_script, flags=re.DOTALL)
+    if body_match:
+        return f"{script_tag}\n{body_match.group(1).strip()}"
+    return f"{script_tag}\n{html_with_local_script}"
 
 
 def render_pyecharts_chart(chart):

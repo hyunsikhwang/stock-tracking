@@ -293,6 +293,8 @@ class TestApp(unittest.TestCase):
 
         self.assertIn("window.__LOCAL_ECHARTS__ = true;", html)
         self.assertNotIn('src="https://assets.pyecharts.org', html)
+        self.assertNotIn("<html>", html)
+        self.assertNotIn("<body>", html)
 
 
 if __name__ == "__main__":

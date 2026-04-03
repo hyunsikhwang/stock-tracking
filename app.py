@@ -1,9 +1,7 @@
 import html
-from base64 import b64encode
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from urllib.parse import quote
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
@@ -15,7 +13,6 @@ except ImportError:
 
 try:
     import streamlit as st
-    import streamlit.components.v1 as components
 except ImportError:
     class _DummyStreamlit:
         session_state = {}
@@ -32,10 +29,6 @@ except ImportError:
             raise RuntimeError("streamlit is required to render the app")
 
     st = _DummyStreamlit()
-    components = SimpleNamespace(
-        html=lambda *args, **kwargs: None,
-        iframe=lambda *args, **kwargs: None,
-    )
 
 try:
     import streamlit_shadcn_ui as ui
@@ -461,14 +454,8 @@ def normalize_prices_for_chart(prices_df, visible_names, start_date, end_date):
     return normalized.dropna(axis=1, how="all")
 
 
-def render_html_content(html_content, height):
-    iframe_src = build_iframe_data_url(html_content)
-    components.iframe(iframe_src, height=height)
-
-
-def build_iframe_data_url(html_content):
-    encoded_html = b64encode(html_content.encode("utf-8")).decode("ascii")
-    return f"data:text/html;base64,{encoded_html}"
+def render_pyecharts_chart(chart):
+    st.html(chart.render_embed(), unsafe_allow_javascript=True, width="stretch")
 
 
 def get_axis_bounds(norm_df):
@@ -549,7 +536,10 @@ def build_chart(norm_df):
     y_min, y_max = get_axis_bounds(norm_df)
 
     chart = (
-        Line(init_opts=opts.InitOpts(width="100%", height="550px"))
+        Line(
+            init_opts=opts.InitOpts(width="100%", height="550px"),
+            render_opts=opts.RenderOpts(is_embed_js=True),
+        )
         .add_xaxis(norm_df.index.strftime("%Y-%m-%d").tolist())
     )
 
@@ -597,12 +587,14 @@ def build_chart(norm_df):
             linestyle_opts=opts.LineStyleOpts(color="#888", type_="dashed", width=1),
         )
     )
-
     return chart
 
 
 def build_portfolio_chart(portfolio_weights):
-    chart = Bar(init_opts=opts.InitOpts(width="100%", height="220px"))
+    chart = Bar(
+        init_opts=opts.InitOpts(width="100%", height="220px"),
+        render_opts=opts.RenderOpts(is_embed_js=True),
+    )
     chart.add_xaxis(["Portfolio"])
     for index, item in enumerate(portfolio_weights):
         chart.add_yaxis(
@@ -757,7 +749,7 @@ def render_app():
     if portfolio_weights:
         st.subheader("Current Portfolio Allocation")
         portfolio_chart = build_portfolio_chart(portfolio_weights)
-        render_html_content(portfolio_chart.render_embed(), height=260)
+        render_pyecharts_chart(portfolio_chart)
         st.markdown("---")
 
     if not visible_names:
@@ -768,7 +760,7 @@ def render_app():
         norm_df = normalize_prices_for_chart(daily_prices, visible_names, start_date, end_date)
         if not norm_df.empty:
             chart = build_chart(norm_df)
-            render_html_content(chart.render_embed(), height=650)
+            render_pyecharts_chart(chart)
         else:
             st.warning("선택한 종목으로 그릴 수 있는 차트 데이터가 없습니다.")
 

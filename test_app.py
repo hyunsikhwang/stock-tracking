@@ -6,7 +6,8 @@ from unittest.mock import patch
 import pandas as pd
 
 from app import (
-    build_iframe_data_url,
+    build_chart,
+    build_portfolio_chart,
     calculate_portfolio_weights,
     TargetConfigError,
     calculate_period_summary,
@@ -256,13 +257,33 @@ class TestApp(unittest.TestCase):
         self.assertAlmostEqual(summary[0]["current_price"], 120.0)
         self.assertAlmostEqual(summary[0]["return"], 20.0)
 
-    def test_build_iframe_data_url_encodes_full_html_document(self):
-        iframe_src = build_iframe_data_url(
-            "<html><body><script>console.log('chart')</script></body></html>"
+    def test_build_chart_enables_embedded_javascript(self):
+        dates = pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"])
+        norm_df = pd.DataFrame(
+            {
+                "ETF A": [100.0, 105.0, 110.0],
+                "ETF B": [100.0, None, 98.5],
+            },
+            index=dates,
         )
 
-        self.assertTrue(iframe_src.startswith("data:text/html;base64,"))
-        self.assertIn("PGh0bWw+", iframe_src)
+        chart = build_chart(norm_df)
+
+        self.assertEqual(chart.render_options["embed_js"], True)
+        self.assertEqual(len(chart.options["series"]), 2)
+        self.assertEqual(chart.options["yAxis"][0]["name"], "Base 100")
+
+    def test_build_portfolio_chart_enables_embedded_javascript(self):
+        chart = build_portfolio_chart(
+            [
+                {"name": "ETF A", "weight": 60.0},
+                {"name": "ETF B", "weight": 40.0},
+            ]
+        )
+
+        self.assertEqual(chart.render_options["embed_js"], True)
+        self.assertEqual(len(chart.options["series"]), 2)
+        self.assertEqual(chart.options["xAxis"][0]["max"], 100)
 
 
 if __name__ == "__main__":

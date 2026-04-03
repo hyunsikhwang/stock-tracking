@@ -284,14 +284,14 @@ class TestApp(unittest.TestCase):
         self.assertEqual(len(chart.options["series"]), 2)
         self.assertEqual(chart.options["xAxis"][0]["max"], 100)
 
-    @patch("app.get_local_echarts_script", return_value="window.__LOCAL_ECHARTS__ = true;")
+    @patch("app.get_local_echarts_data_url", return_value="data:text/javascript;base64,VEVTVA==")
     def test_build_pyecharts_html_inlines_local_echarts_script(self, _mock_script):
         dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
         norm_df = pd.DataFrame({"ETF A": [100.0, 101.0]}, index=dates)
 
         html = build_pyecharts_html(build_chart(norm_df))
 
-        self.assertIn("window.__LOCAL_ECHARTS__ = true;", html)
+        self.assertIn('src="data:text/javascript;base64,VEVTVA=="', html)
         self.assertNotIn('src="https://assets.pyecharts.org', html)
         self.assertNotIn("<html>", html)
         self.assertNotIn("<body>", html)

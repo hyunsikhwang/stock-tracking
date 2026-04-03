@@ -1,4 +1,5 @@
 import html
+from base64 import b64encode
 import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -466,9 +467,17 @@ def get_local_echarts_script():
     return LOCAL_ECHARTS_JS_PATH.read_text(encoding="utf-8")
 
 
+@st.cache_data
+def get_local_echarts_data_url():
+    encoded_script = b64encode(get_local_echarts_script().encode("utf-8")).decode("ascii")
+    return f"data:text/javascript;base64,{encoded_script}"
+
+
 def build_pyecharts_html(chart):
     html_content = chart.render_embed()
-    script_tag = f"<script type=\"text/javascript\">\n{get_local_echarts_script()}\n</script>"
+    script_tag = (
+        f'<script type="text/javascript" src="{get_local_echarts_data_url()}"></script>'
+    )
     html_with_local_script = re.sub(
         r'<script type="text/javascript" src="[^"]*echarts(?:\.min)?\.js"></script>',
         "",

@@ -1,6 +1,4 @@
 import html
-from base64 import b64encode
-import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -45,10 +43,13 @@ except ImportError:
     Bar = None
     Line = None
 
+try:
+    from streamlit_echarts import st_pyecharts
+except ImportError:
+    st_pyecharts = None
+
 
 BASE_DIR = Path(__file__).resolve().parent
-ASSETS_DIR = BASE_DIR / "assets"
-LOCAL_ECHARTS_JS_PATH = ASSETS_DIR / "echarts.min.js"
 TARGET_FILES = {
     "KR Stocks": BASE_DIR / "targets" / "kr_stocks.txt",
     "US Stocks": BASE_DIR / "targets" / "us_stocks.txt",
@@ -458,40 +459,8 @@ def normalize_prices_for_chart(prices_df, visible_names, start_date, end_date):
     return normalized.dropna(axis=1, how="all")
 
 
-@st.cache_data
-def get_local_echarts_script():
-    if not LOCAL_ECHARTS_JS_PATH.exists():
-        raise RuntimeError(
-            "로컬 ECharts 자산이 없습니다. assets/echarts.min.js 파일을 확인해 주세요."
-        )
-    return LOCAL_ECHARTS_JS_PATH.read_text(encoding="utf-8")
-
-
-@st.cache_data
-def get_local_echarts_data_url():
-    encoded_script = b64encode(get_local_echarts_script().encode("utf-8")).decode("ascii")
-    return f"data:text/javascript;base64,{encoded_script}"
-
-
-def build_pyecharts_html(chart):
-    html_content = chart.render_embed()
-    script_tag = (
-        f'<script type="text/javascript" src="{get_local_echarts_data_url()}"></script>'
-    )
-    html_with_local_script = re.sub(
-        r'<script type="text/javascript" src="[^"]*echarts(?:\.min)?\.js"></script>',
-        "",
-        html_content,
-        count=1,
-    )
-    body_match = re.search(r"<body[^>]*>(.*)</body>", html_with_local_script, flags=re.DOTALL)
-    if body_match:
-        return f"{script_tag}\n{body_match.group(1).strip()}"
-    return f"{script_tag}\n{html_with_local_script}"
-
-
 def render_pyecharts_chart(chart):
-    st.html(build_pyecharts_html(chart), unsafe_allow_javascript=True, width="stretch")
+    st_pyecharts(chart, height=chart.height, width=chart.width)
 
 
 def get_axis_bounds(norm_df):
@@ -678,6 +647,7 @@ def render_app():
         or opts is None
         or Line is None
         or Bar is None
+        or st_pyecharts is None
         or getattr(fdr, "DataReader", None) is None
     ):
         raise RuntimeError(

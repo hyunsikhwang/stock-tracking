@@ -3,3 +3,4 @@ pandas
 finance-datareader
 pyecharts==2.0.9
 streamlit-shadcn-ui
+streamlit-echarts==0.4.0

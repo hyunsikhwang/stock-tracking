@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pandas as pd
 
 from app import (
+    build_pyecharts_html,
     build_chart,
     build_portfolio_chart,
     calculate_portfolio_weights,
@@ -257,7 +258,7 @@ class TestApp(unittest.TestCase):
         self.assertAlmostEqual(summary[0]["current_price"], 120.0)
         self.assertAlmostEqual(summary[0]["return"], 20.0)
 
-    def test_build_chart_enables_embedded_javascript(self):
+    def test_build_chart_keeps_expected_pyecharts_options(self):
         dates = pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"])
         norm_df = pd.DataFrame(
             {
@@ -269,11 +270,10 @@ class TestApp(unittest.TestCase):
 
         chart = build_chart(norm_df)
 
-        self.assertEqual(chart.render_options["embed_js"], True)
         self.assertEqual(len(chart.options["series"]), 2)
         self.assertEqual(chart.options["yAxis"][0]["name"], "Base 100")
 
-    def test_build_portfolio_chart_enables_embedded_javascript(self):
+    def test_build_portfolio_chart_keeps_expected_pyecharts_options(self):
         chart = build_portfolio_chart(
             [
                 {"name": "ETF A", "weight": 60.0},
@@ -281,9 +281,18 @@ class TestApp(unittest.TestCase):
             ]
         )
 
-        self.assertEqual(chart.render_options["embed_js"], True)
         self.assertEqual(len(chart.options["series"]), 2)
         self.assertEqual(chart.options["xAxis"][0]["max"], 100)
+
+    @patch("app.get_local_echarts_script", return_value="window.__LOCAL_ECHARTS__ = true;")
+    def test_build_pyecharts_html_inlines_local_echarts_script(self, _mock_script):
+        dates = pd.to_datetime(["2026-01-01", "2026-01-02"])
+        norm_df = pd.DataFrame({"ETF A": [100.0, 101.0]}, index=dates)
+
+        html = build_pyecharts_html(build_chart(norm_df))
+
+        self.assertIn("window.__LOCAL_ECHARTS__ = true;", html)
+        self.assertNotIn('src="https://assets.pyecharts.org', html)
 
 
 if __name__ == "__main__":

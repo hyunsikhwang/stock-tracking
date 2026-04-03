@@ -1,4 +1,5 @@
 import html
+import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -45,6 +46,8 @@ except ImportError:
 
 
 BASE_DIR = Path(__file__).resolve().parent
+ASSETS_DIR = BASE_DIR / "assets"
+LOCAL_ECHARTS_JS_PATH = ASSETS_DIR / "echarts.min.js"
 TARGET_FILES = {
     "KR Stocks": BASE_DIR / "targets" / "kr_stocks.txt",
     "US Stocks": BASE_DIR / "targets" / "us_stocks.txt",
@@ -454,8 +457,28 @@ def normalize_prices_for_chart(prices_df, visible_names, start_date, end_date):
     return normalized.dropna(axis=1, how="all")
 
 
+@st.cache_data
+def get_local_echarts_script():
+    if not LOCAL_ECHARTS_JS_PATH.exists():
+        raise RuntimeError(
+            "로컬 ECharts 자산이 없습니다. assets/echarts.min.js 파일을 확인해 주세요."
+        )
+    return LOCAL_ECHARTS_JS_PATH.read_text(encoding="utf-8")
+
+
+def build_pyecharts_html(chart):
+    html_content = chart.render_embed()
+    script_tag = f"<script type=\"text/javascript\">\n{get_local_echarts_script()}\n</script>"
+    return re.sub(
+        r'<script type="text/javascript" src="[^"]*echarts(?:\.min)?\.js"></script>',
+        lambda _match: script_tag,
+        html_content,
+        count=1,
+    )
+
+
 def render_pyecharts_chart(chart):
-    st.html(chart.render_embed(), unsafe_allow_javascript=True, width="stretch")
+    st.html(build_pyecharts_html(chart), unsafe_allow_javascript=True, width="stretch")
 
 
 def get_axis_bounds(norm_df):
@@ -536,10 +559,7 @@ def build_chart(norm_df):
     y_min, y_max = get_axis_bounds(norm_df)
 
     chart = (
-        Line(
-            init_opts=opts.InitOpts(width="100%", height="550px"),
-            render_opts=opts.RenderOpts(is_embed_js=True),
-        )
+        Line(init_opts=opts.InitOpts(width="100%", height="550px"))
         .add_xaxis(norm_df.index.strftime("%Y-%m-%d").tolist())
     )
 
@@ -593,7 +613,6 @@ def build_chart(norm_df):
 def build_portfolio_chart(portfolio_weights):
     chart = Bar(
         init_opts=opts.InitOpts(width="100%", height="220px"),
-        render_opts=opts.RenderOpts(is_embed_js=True),
     )
     chart.add_xaxis(["Portfolio"])
     for index, item in enumerate(portfolio_weights):

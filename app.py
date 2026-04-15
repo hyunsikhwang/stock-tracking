@@ -791,12 +791,6 @@ def render_app():
     ]
     portfolio_weights = calculate_portfolio_weights(summary, visible_names)
 
-    if portfolio_weights:
-        st.subheader("Current Portfolio Allocation")
-        portfolio_chart = build_portfolio_chart(portfolio_weights)
-        render_pyecharts_chart(portfolio_chart)
-        st.markdown("---")
-
     if not visible_names:
         st.info("최소 1개 이상의 종목을 선택해야 차트를 볼 수 있습니다.")
     else:
@@ -823,6 +817,12 @@ def render_app():
             }
         )
         st.dataframe(summary_df, width="stretch")
+
+    if portfolio_weights:
+        st.markdown("---")
+        st.subheader("Current Portfolio Allocation")
+        portfolio_chart = build_portfolio_chart(portfolio_weights)
+        render_pyecharts_chart(portfolio_chart)
 
     st.caption(
         f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "

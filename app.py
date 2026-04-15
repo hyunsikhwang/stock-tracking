@@ -37,11 +37,12 @@ except ImportError:
 
 try:
     from pyecharts import options as opts
-    from pyecharts.charts import Bar, Line
+    from pyecharts.charts import Bar, Line, TreeMap
 except ImportError:
     opts = None
     Bar = None
     Line = None
+    TreeMap = None
 
 try:
     from streamlit_echarts import st_pyecharts
@@ -592,7 +593,7 @@ def build_chart(norm_df):
     return chart
 
 
-def build_portfolio_chart(portfolio_weights):
+def build_portfolio_chart_legacy(portfolio_weights):
     chart = Bar(
         init_opts=opts.InitOpts(width="100%", height="220px"),
     )
@@ -641,12 +642,54 @@ def build_portfolio_chart(portfolio_weights):
     return chart
 
 
+def build_portfolio_chart(portfolio_weights):
+    data = []
+    for index, item in enumerate(portfolio_weights):
+        data.append(
+            {
+                "name": item["name"],
+                "value": round(item["weight"], 2),
+                "itemStyle": {"color": CHART_COLORS[index % len(CHART_COLORS)]},
+            }
+        )
+
+    chart = TreeMap(
+        init_opts=opts.InitOpts(width="100%", height="320px"),
+    )
+    chart.add(
+        series_name="Portfolio Allocation",
+        data=data,
+        leaf_depth=1,
+        roam=False,
+        label_opts=opts.LabelOpts(
+            is_show=True,
+            position="inside",
+            formatter="{b}\n{c}%",
+            color="#ffffff",
+            font_size=11,
+        ),
+    )
+    chart.set_global_opts(
+        title_opts=opts.TitleOpts(
+            title="Portfolio Allocation",
+            pos_left="center",
+        ),
+        tooltip_opts=opts.TooltipOpts(
+            trigger="item",
+            formatter="{b}<br/>비중: {c}%",
+        ),
+        legend_opts=opts.LegendOpts(is_show=False),
+    )
+    return chart
+
+
 def render_app():
     if (
         ui is None
         or opts is None
         or Line is None
         or Bar is None
+        or TreeMap is None
         or st_pyecharts is None
         or getattr(fdr, "DataReader", None) is None
     ):

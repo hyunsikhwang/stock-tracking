@@ -280,8 +280,10 @@ class TestApp(unittest.TestCase):
             ]
         )
 
-        self.assertEqual(len(chart.options["series"]), 2)
-        self.assertEqual(chart.options["xAxis"][0]["max"], 100)
+        self.assertEqual(len(chart.options["series"]), 1)
+        self.assertEqual(chart.options["series"][0]["type"], "treemap")
+        self.assertEqual(chart.options["series"][0]["data"][0]["name"], "ETF A")
+        self.assertEqual(chart.options["series"][0]["data"][0]["value"], 60.0)
 
 if __name__ == "__main__":
     unittest.main()
